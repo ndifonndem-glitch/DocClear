@@ -57,20 +57,20 @@ export default function RootLayout({
         <Navbar />
 
         {/* Main Content Area */}
-        <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none pb-28 sm:pb-12">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none pb-28 sm:pb-12 w-full">
+          <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-6 sm:py-8">
             {children}
           </div>
         </main>
 
         {/* Global Accessible Footer (Visible on all screen sizes, including mobile) */}
-        <footer className="bg-white border-t border-slate-200 py-6 mt-auto">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+        <footer className="bg-white border-t border-slate-200 py-6 mt-auto w-full">
+          <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
             <div className="flex items-center gap-2 text-slate-700">
               <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0" aria-hidden="true" />
               <span>Processed temporarily • Never saved without permission • WCAG 2.2 AA</span>
             </div>
-            <p className="text-center sm:text-right">IT8530 Advanced Mobile Application Solutions • DocClear PWA</p>
+            <p className="text-center sm:text-right">IT8530 Advanced Mobile Application Solutions • DocClear</p>
           </div>
         </footer>
       </body>

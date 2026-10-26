@@ -353,7 +353,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const timelineDeadlines = data.structured_deadlines || [];
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-36 sm:pb-28 max-w-5xl mx-auto px-2 sm:px-0">
+    <div className="space-y-6 sm:space-y-8 pb-36 sm:pb-28 w-full max-w-[1700px] mx-auto px-2 sm:px-0">
       {/* Top Header */}
       <div className="space-y-2 border-b border-slate-200/80 pb-4">
         <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -802,7 +802,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
         aria-label="Audio summary player"
         className="fixed bottom-0 left-0 right-0 z-30 bg-[#0f172a] text-white p-3 sm:p-4 shadow-2xl border-t border-slate-800 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 px-2 sm:px-4">
+        <div className="w-full max-w-[1700px] mx-auto flex items-center justify-between gap-3 px-2 sm:px-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"

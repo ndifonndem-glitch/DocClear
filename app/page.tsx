@@ -325,7 +325,7 @@ export default function Dashboard() {
       <div
         role="note"
         aria-label="Advisory notice"
-        className="bg-amber-50/90 border border-amber-200/80 rounded-xl p-4 text-xs text-amber-950 leading-relaxed max-w-4xl"
+        className="bg-amber-50/90 border border-amber-200/80 rounded-xl p-4 text-xs text-amber-950 leading-relaxed w-full"
       >
         <strong className="font-bold text-amber-950">Please note:</strong> DocClear is a comprehension aid.
         Always check payments and deadlines against the original document.
