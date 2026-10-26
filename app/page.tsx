@@ -6,8 +6,8 @@ import { ArrowRight, Loader2, Sparkles, Shield } from "lucide-react";
 import { CameraCapture, SupportedFileType } from "@/components/capture/CameraCapture";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { extractTextFromImage } from "@/lib/ocr";
-import { OCRProgress } from "@/types/document";
+import { extractTextFromImage, extractTextFromMultipleImages } from "@/lib/ocr";
+import { OCRProgress, ScannedPage } from "@/types/document";
 
 const SAMPLE_DOCUMENTS = [
   {
@@ -45,6 +45,7 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileType, setFileType] = useState<SupportedFileType | null>(null);
+  const [scannedPages, setScannedPages] = useState<ScannedPage[]>([]);
   const [ocrProgress, setOcrProgress] = useState<OCRProgress | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,6 +54,15 @@ export default function Dashboard() {
     setSelectedFile(file);
     setPreviewUrl(dataUrl);
     setFileType(type);
+    setScannedPages([]);
+    setErrorMessage(null);
+  };
+
+  const handleMultiPagesSelected = (pages: ScannedPage[]) => {
+    setScannedPages(pages);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setFileType(null);
     setErrorMessage(null);
   };
 
@@ -65,7 +75,7 @@ export default function Dashboard() {
   };
 
   const handleStartExtraction = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile && scannedPages.length === 0) return;
 
     setIsProcessing(true);
     setErrorMessage(null);
@@ -73,9 +83,21 @@ export default function Dashboard() {
     try {
       let extractedText = "";
       let confidence = 0.95;
+      let docName = "Document";
 
-      // Case 1: Image File -> Client-Side Tesseract OCR
-      if (fileType === "image") {
+      // Case A: Multi-page camera scans (1 to 5 pages)
+      if (scannedPages.length > 0) {
+        docName = `Scanned Document (${scannedPages.length} ${scannedPages.length === 1 ? "page" : "pages"})`;
+        const result = await extractTextFromMultipleImages(scannedPages, (p) => {
+          setOcrProgress(p);
+        });
+        extractedText = result.text;
+        confidence = result.confidence;
+      }
+
+      // Case B: Single Image File -> Client-Side Tesseract OCR
+      else if (fileType === "image" && selectedFile) {
+        docName = selectedFile.name;
         if (!previewUrl) throw new Error("Image preview is missing. Please reselect the file.");
         const result = await extractTextFromImage(previewUrl, (p) => {
           setOcrProgress(p);
@@ -84,8 +106,9 @@ export default function Dashboard() {
         confidence = result.confidence;
       }
 
-      // Case 2: Plain Text File -> Direct text read
-      else if (fileType === "text") {
+      // Case C: Plain Text File -> Direct text read
+      else if (fileType === "text" && selectedFile) {
+        docName = selectedFile.name;
         setOcrProgress({
           status: "recognizing",
           progress: 0.5,
@@ -95,8 +118,9 @@ export default function Dashboard() {
         confidence = 1.0;
       }
 
-      // Case 3: PDF or Word Document -> /api/extract-doc endpoint
-      else if (fileType === "pdf" || fileType === "docx") {
+      // Case D: PDF or Word Document -> /api/extract-doc endpoint
+      else if ((fileType === "pdf" || fileType === "docx") && selectedFile) {
+        docName = selectedFile.name;
         setOcrProgress({
           status: "recognizing",
           progress: 0.4,
@@ -130,7 +154,7 @@ export default function Dashboard() {
       try {
         sessionStorage.setItem("docclear_extracted_text", extractedText.trim());
         sessionStorage.setItem("docclear_original_ocr", extractedText.trim());
-        sessionStorage.setItem("docclear_filename", selectedFile.name);
+        sessionStorage.setItem("docclear_filename", docName);
         sessionStorage.setItem("docclear_confidence", confidence.toString());
       } catch (storageErr) {
         console.warn("Storage quota warning:", storageErr);
@@ -153,6 +177,7 @@ export default function Dashboard() {
     setSelectedFile(null);
     setPreviewUrl(null);
     setFileType(null);
+    setScannedPages([]);
     setOcrProgress(null);
     setErrorMessage(null);
   };
@@ -203,11 +228,14 @@ export default function Dashboard() {
           {/* Camera & Upload Capture Component */}
           <CameraCapture
             onFileSelected={handleFileSelected}
+            onMultiPagesSelected={handleMultiPagesSelected}
             onError={(err) => setErrorMessage(err)}
             selectedFileName={selectedFile?.name}
             selectedFileSize={selectedFile?.size}
             selectedFileType={fileType}
             previewUrl={previewUrl}
+            scannedPages={scannedPages}
+            onUpdateScannedPages={(pages) => setScannedPages(pages)}
             onClear={handleClear}
           />
 
@@ -278,7 +306,7 @@ export default function Dashboard() {
       )}
 
       {/* Action Button: Extract Text */}
-      {selectedFile && !isProcessing && (
+      {(selectedFile || scannedPages.length > 0) && !isProcessing && (
         <div className="pt-2 max-w-xl">
           <Button
             type="button"
@@ -289,7 +317,11 @@ export default function Dashboard() {
             className="w-full text-base py-4 shadow-md min-h-[52px]"
             aria-label="Process and extract text from this document"
           >
-            Extract Text from Document
+            {scannedPages.length > 1
+              ? `Extract Text from All ${scannedPages.length} Pages`
+              : scannedPages.length === 1
+              ? "Extract Text from Scanned Page"
+              : "Extract Text from Document"}
           </Button>
         </div>
       )}

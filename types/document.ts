@@ -1,3 +1,10 @@
+export interface ScannedPage {
+  id: string;
+  dataUrl: string;
+  rotation: number; // 0, 90, 180, 270
+  timestamp: number;
+}
+
 export interface DocumentSession {
   id: string;
   fileName: string;
