@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FileText, BarChart3, Home, History, Settings, RotateCcw, X, Volume2, Type, Trash2, ShieldCheck, Check } from "lucide-react";
+import { FileText, BarChart3, Home, History, Settings, RotateCcw, X, Volume2, Type, Trash2, ShieldCheck, Check, Folder } from "lucide-react";
 
 export const Navbar = () => {
   const pathname = usePathname();
@@ -12,6 +12,7 @@ export const Navbar = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [speechRate, setSpeechRate] = useState(1.0);
   const [clearedNotice, setClearedNotice] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<string>("undecided");
 
   useEffect(() => {
     const saved = localStorage.getItem("docclear_text_scale");
@@ -23,7 +24,19 @@ export const Navbar = () => {
     if (savedRate) {
       setSpeechRate(parseFloat(savedRate));
     }
-  }, []);
+    const savedPerm = localStorage.getItem("docclear_device_permission");
+    if (savedPerm) {
+      setPermissionStatus(savedPerm);
+    }
+  }, [isSettingsOpen]);
+
+  const handleResetPermission = () => {
+    localStorage.removeItem("docclear_device_permission");
+    setPermissionStatus("undecided");
+    setIsSettingsOpen(false);
+    // Dispatch custom event to notify page/capture components to show dialog
+    window.dispatchEvent(new CustomEvent("docclear-prompt-permission"));
+  };
 
   const toggleTextScale = () => {
     const next = !isLargeText;
@@ -277,7 +290,37 @@ export const Navbar = () => {
                 )}
               </div>
 
-              {/* 4. App Info & Accessibility Badge */}
+              {/* 4. Device Permissions (Photos & Files) */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
+                  <Folder className="w-4 h-4 text-blue-600" />
+                  Device Permissions (Photos & Media)
+                </label>
+                <div className="flex items-center justify-between mt-1 mb-2.5 text-xs">
+                  <span className="text-slate-600 font-medium">Access Status:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                      permissionStatus === "granted"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : permissionStatus === "denied"
+                        ? "bg-rose-100 text-rose-800 border border-rose-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                    }`}
+                  >
+                    {permissionStatus === "granted" ? "✓ Allowed" : permissionStatus === "denied" ? "✕ Denied" : "Pending Prompt"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetPermission}
+                  className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 text-slate-700 hover:text-blue-800 text-xs font-semibold transition-colors min-h-[44px] flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4 text-blue-600" />
+                  Reset & Test Permission Prompt
+                </button>
+              </div>
+
+              {/* 5. App Info & Accessibility Badge */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
                 <div className="flex items-center gap-1.5 text-slate-800 font-bold">
                   <ShieldCheck className="w-4 h-4 text-blue-600" />

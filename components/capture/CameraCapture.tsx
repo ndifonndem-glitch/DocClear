@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ScannedPage } from "@/types/document";
+import { PermissionDialog, PermissionStatus } from "@/components/ui/PermissionDialog";
 
 export type SupportedFileType = "image" | "pdf" | "docx" | "text";
 
@@ -58,6 +59,11 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const [inspectingPage, setInspectingPage] = useState<ScannedPage | null>(null);
   const [shutterFlash, setShutterFlash] = useState(false);
 
+  // Permission Prompt State
+  const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("undecided");
+  const [pendingAction, setPendingAction] = useState<"camera" | "upload" | null>(null);
+
   // Local pages inside the camera viewfinder session
   const [localPages, setLocalPages] = useState<ScannedPage[]>([]);
 
@@ -72,6 +78,56 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       setLocalPages(scannedPages);
     }
   }, [scannedPages]);
+
+  // Read saved permission status & listen for global prompt events
+  useEffect(() => {
+    const saved = localStorage.getItem("docclear_device_permission") as PermissionStatus | null;
+    if (saved) {
+      setPermissionStatus(saved);
+    }
+
+    const handleGlobalPrompt = () => {
+      setIsPermissionDialogOpen(true);
+    };
+
+    window.addEventListener("docclear-prompt-permission", handleGlobalPrompt);
+    return () => {
+      window.removeEventListener("docclear-prompt-permission", handleGlobalPrompt);
+    };
+  }, []);
+
+  const handleCameraButtonClick = () => {
+    const saved = localStorage.getItem("docclear_device_permission");
+    if (saved !== "granted") {
+      setPendingAction("camera");
+      setIsPermissionDialogOpen(true);
+      return;
+    }
+    startCamera();
+  };
+
+  const handleUploadButtonClick = () => {
+    const saved = localStorage.getItem("docclear_device_permission");
+    if (saved !== "granted") {
+      setPendingAction("upload");
+      setIsPermissionDialogOpen(true);
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handlePermissionDecision = (status: PermissionStatus) => {
+    setPermissionStatus(status);
+    setIsPermissionDialogOpen(false);
+    if (status === "granted") {
+      if (pendingAction === "camera") {
+        startCamera();
+      } else if (pendingAction === "upload") {
+        fileInputRef.current?.click();
+      }
+    }
+    setPendingAction(null);
+  };
 
   // Stop camera stream on unmount
   useEffect(() => {
@@ -344,7 +400,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         {/* Solid Blue Button: Use camera */}
         <button
           type="button"
-          onClick={startCamera}
+          onClick={handleCameraButtonClick}
           className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl font-bold text-base shadow-sm transition-all focus:outline-none focus:ring-4 focus:ring-blue-200 min-h-[56px]"
           aria-label="Use camera to scan document (up to 5 pages)"
         >
@@ -360,7 +416,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         {/* Dashed Border Button: Upload or drop file */}
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleUploadButtonClick}
           onDragOver={(e) => {
             e.preventDefault();
             setIsDragOver(true);
@@ -378,6 +434,23 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           <span>Upload or drop file</span>
         </button>
       </div>
+
+      {/* Permission Denied Recovery Notice */}
+      {permissionStatus === "denied" && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span>Photo & device file access is currently denied.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPermissionDialogOpen(true)}
+            className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[36px] px-2"
+          >
+            Grant Access
+          </button>
+        </div>
+      )}
 
       <div className="text-xs text-slate-500 font-medium">
         Camera: scan 1 to 5 pages • Files: PDF, DOCX, JPG, PNG, TXT up to 15 MB.
@@ -469,7 +542,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             {scannedPages.length < MAX_PAGES_LIMIT && (
               <button
                 type="button"
-                onClick={startCamera}
+                onClick={handleCameraButtonClick}
                 className="aspect-[3/4] rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/40 hover:bg-blue-50/80 text-blue-700 flex flex-col items-center justify-center gap-2 transition-all p-3 group min-h-[44px]"
                 aria-label={`Add page ${scannedPages.length + 1} of ${MAX_PAGES_LIMIT}`}
               >
@@ -804,6 +877,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           </div>
         </div>
       )}
+
+      {/* SYSTEM PERMISSION CONSENT MODAL */}
+      <PermissionDialog
+        forceOpen={isPermissionDialogOpen}
+        onPermissionChange={handlePermissionDecision}
+        onClose={() => setIsPermissionDialogOpen(false)}
+      />
     </div>
   );
 };
