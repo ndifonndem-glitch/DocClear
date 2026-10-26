@@ -38,6 +38,15 @@ yarn-error.*
 out/
 build/
 
+# Assessment & office documents (never push to git)
+*.docx
+*.pdf
+*.pptx
+*Assessment*
+*assessment*
+*Course-Guide*
+
+
 # typescript
 *.tsbuildinfo
 
