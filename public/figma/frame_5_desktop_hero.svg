@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="1440" height="900" style="background:#f8fafc; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <filter id="shadow-hero" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <filter id="shadow-float" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#1e3a8a" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1440" height="80" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <g transform="translate(80, 24)">
+    <!-- Logo Icon -->
+    <rect x="0" y="0" width="34" height="34" rx="8" fill="#2563eb"/>
+    <path d="M10 9 h14 v16 h-14 z" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <path d="M14 14 h6 M14 18 h6 M14 22 h4" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <!-- Brand Name -->
+    <text x="44" y="24" fill="#0f172a" font-size="20" font-weight="800" letter-spacing="-0.5">DocClear</text>
+    <rect x="135" y="6" width="56" height="22" rx="11" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1"/>
+    <text x="163" y="21" fill="#059669" font-size="11" font-weight="700" text-anchor="middle">LITE v2.0</text>
+  </g>
+
+  <!-- Nav Links & Utilities -->
+  <g transform="translate(980, 24)">
+    <!-- Font scaling control -->
+    <rect x="0" y="0" width="84" height="34" rx="8" fill="#f1f5f9"/>
+    <text x="22" y="22" fill="#64748b" font-size="14" font-weight="700">A-</text>
+    <line x1="42" y1="8" x2="42" y2="26" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="62" y="22" fill="#0f172a" font-size="14" font-weight="700">A+</text>
+
+    <!-- Help Link -->
+    <text x="120" y="22" fill="#475569" font-size="14" font-weight="600">Documentation</text>
+    <text x="240" y="22" fill="#475569" font-size="14" font-weight="600">Privacy Shield</text>
+
+    <!-- Upload CTA -->
+    <rect x="350" y="-3" width="110" height="40" rx="8" fill="#2563eb"/>
+    <text x="405" y="22" fill="#ffffff" font-size="14" font-weight="700" text-anchor="middle">Scan Now</text>
+  </g>
+
+  <!-- Main Hero Container -->
+  <!-- LEFT COLUMN: Typography & Actions -->
+  <g transform="translate(80, 140)">
+    <!-- Status / Trust Badge -->
+    <rect x="0" y="0" width="224" height="30" rx="15" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+    <circle cx="14" cy="15" r="4" fill="#2563eb"/>
+    <text x="26" y="20" fill="#1d4ed8" font-size="12" font-weight="700">AI-Powered Document Simplifier</text>
+
+    <!-- Headline -->
+    <text x="0" y="80" fill="#0f172a" font-size="44" font-weight="900" letter-spacing="-1">Understand any complex</text>
+    <text x="0" y="132" fill="#2563eb" font-size="44" font-weight="900" letter-spacing="-1">document in seconds.</text>
+
+    <!-- Subtitle -->
+    <text x="0" y="176" fill="#475569" font-size="17" line-height="28">DocClear breaks down dense legalese, tenancy agreements, official notices,</text>
+    <text x="0" y="204" fill="#475569" font-size="17">and medical consent forms into crystal-clear plain English summaries.</text>
+
+    <!-- 3 Steps Badges -->
+    <g transform="translate(0, 240)">
+      <rect x="0" y="0" width="130" height="32" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+      <circle cx="16" cy="16" r="10" fill="#eff6ff"/>
+      <text x="16" y="20" fill="#2563eb" font-size="11" font-weight="800" text-anchor="middle">1</text>
+      <text x="34" y="20" fill="#334155" font-size="12" font-weight="600">Scan / Upload</text>
+
+      <rect x="142" y="0" width="140" height="32" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+      <circle cx="158" cy="16" r="10" fill="#eff6ff"/>
+      <text x="158" y="20" fill="#2563eb" font-size="11" font-weight="800" text-anchor="middle">2</text>
+      <text x="176" y="20" fill="#334155" font-size="12" font-weight="600">Review OCR</text>
+
+      <rect x="294" y="0" width="160" height="32" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+      <circle cx="310" cy="16" r="10" fill="#eff6ff"/>
+      <text x="310" y="20" fill="#2563eb" font-size="11" font-weight="800" text-anchor="middle">3</text>
+      <text x="328" y="20" fill="#334155" font-size="12" font-weight="600">Plain Words + TTS</text>
+    </g>
+
+    <!-- Action Buttons -->
+    <g transform="translate(0, 310)">
+      <!-- Primary Button -->
+      <rect x="0" y="0" width="220" height="54" rx="12" fill="#2563eb"/>
+      <path d="M26 27 C26 23 29 20 33 20 L37 20 L39 17 L47 17 L49 20 L53 20 C57 20 60 23 60 27 L60 37 C60 41 57 44 53 44 L33 44 C29 44 26 41 26 37 Z" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+      <circle cx="43" cy="32" r="5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+      <text x="74" y="33" fill="#ffffff" font-size="16" font-weight="700">Scan with Camera</text>
+
+      <!-- Secondary Button -->
+      <rect x="236" y="0" width="210" height="54" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+      <path d="M262 33 L270 24 L278 33 M270 25 L270 41" stroke="#334155" stroke-width="2.2" stroke-linecap="round"/>
+      <text x="290" y="33" fill="#0f172a" font-size="16" font-weight="700">Upload PDF / File</text>
+    </g>
+
+    <!-- Security & Privacy note -->
+    <g transform="translate(0, 396)">
+      <path d="M12 2 L4 6 v5 c0 5.5 3.8 10.7 8 12 c4.2 -1.3 8 -6.5 8 -12 V6 l-8 -4 z" fill="none" stroke="#059669" stroke-width="1.8"/>
+      <path d="M8 11 l3 3 l6 -6" stroke="#059669" stroke-width="1.8" stroke-linecap="round"/>
+      <text x="28" y="16" fill="#059669" font-size="13" font-weight="600">Zero-retention mode active • Encrypted in-memory client processing</text>
+    </g>
+
+    <!-- Sample quick test chips -->
+    <g transform="translate(0, 444)">
+      <text x="0" y="16" fill="#64748b" font-size="12" font-weight="700" text-transform="uppercase" letter-spacing="0.5">Quick Try Sample Documents:</text>
+      <rect x="0" y="28" width="180" height="34" rx="8" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="14" y="50" fill="#334155" font-size="13" font-weight="600">🏠 Tenancy Agreement</text>
+
+      <rect x="192" y="28" width="164" height="34" rx="8" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="206" y="50" fill="#334155" font-size="13" font-weight="600">⚡ Overdue Utility Notice</text>
+
+      <rect x="368" y="28" width="170" height="34" rx="8" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="382" y="50" fill="#334155" font-size="13" font-weight="600">🏥 Medical Consent Form</text>
+    </g>
+  </g>
+
+  <!-- RIGHT COLUMN: Visual Interactive Preview & Comparison Card Mockup -->
+  <g transform="translate(730, 120)">
+    <!-- Main Legal Document Base Card -->
+    <rect x="0" y="0" width="630" height="640" rx="20" fill="#ffffff" filter="url(#shadow-hero)" stroke="#e2e8f0" stroke-width="1"/>
+
+    <!-- Document Header Inside Card -->
+    <rect x="0" y="0" width="630" height="60" rx="20" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+    <!-- Window dots -->
+    <circle cx="28" cy="30" r="5" fill="#f87171"/>
+    <circle cx="44" cy="30" r="5" fill="#fbbf24"/>
+    <circle cx="60" cy="30" r="5" fill="#34d399"/>
+    <text x="86" y="35" fill="#64748b" font-size="13" font-weight="600">Original Legal Text (Complex Clause)</text>
+    <rect x="490" y="18" width="114" height="24" rx="12" fill="#fee2e2"/>
+    <text x="547" y="34" fill="#dc2626" font-size="11" font-weight="700" text-anchor="middle">Grade 16+ Legal</text>
+
+    <!-- Document Body Content -->
+    <g transform="translate(32, 86)">
+      <text x="0" y="16" fill="#0f172a" font-size="15" font-weight="800">STANDARD RESIDENTIAL TENANCY AGREEMENT — SECTION 14.3</text>
+      
+      <text x="0" y="44" fill="#64748b" font-size="13" line-height="22">"The Tenant covenants and undertakes with the Landlord that the Tenant</text>
+      <text x="0" y="66" fill="#64748b" font-size="13">shall permit the Landlord and any authorized agent thereof at all convenient</text>
+      <text x="0" y="88" fill="#64748b" font-size="13">times during the daylight hours having given not less than twenty-four (24)</text>
+      <text x="0" y="110" fill="#64748b" font-size="13">hours written notice thereof, to enter upon and inspect the condition of</text>
+      <text x="0" y="132" fill="#64748b" font-size="13">the Demised Premises and of all fixtures and appurtenances..."</text>
+    </g>
+
+    <!-- FLOATING PLAIN-LANGUAGE SUMMARY CARD (Overlaid) -->
+    <g transform="translate(40, 240)" filter="url(#shadow-float)">
+      <rect x="0" y="0" width="550" height="340" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+      
+      <!-- Blue Accent Header -->
+      <path d="M0 16 C0 7 7 0 16 0 L534 0 C543 0 550 7 550 16 L550 48 L0 48 Z" fill="#2563eb"/>
+      <path d="M22 24 L27 29 L38 18" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="46" y="30" fill="#ffffff" font-size="14" font-weight="800">IN PLAIN WORDS (DocClear Summary)</text>
+      <rect x="420" y="12" width="110" height="24" rx="12" fill="#1d4ed8"/>
+      <text x="475" y="28" fill="#93c5fd" font-size="11" font-weight="700" text-anchor="middle">Reduced to Grade 6</text>
+
+      <!-- Key Metrics Row inside card -->
+      <g transform="translate(24, 70)">
+        <rect x="0" y="0" width="150" height="54" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="14" y="22" fill="#64748b" font-size="11" font-weight="600">Word Reduction</text>
+        <text x="14" y="44" fill="#0f172a" font-size="18" font-weight="800">- 68%</text>
+
+        <rect x="166" y="0" width="150" height="54" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="180" y="22" fill="#64748b" font-size="11" font-weight="600">Reading Time</text>
+        <text x="180" y="44" fill="#0f172a" font-size="18" font-weight="800">18 sec</text>
+
+        <rect x="332" y="0" width="166" height="54" rx="8" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1"/>
+        <text x="346" y="22" fill="#059669" font-size="11" font-weight="600">Clarity Score</text>
+        <text x="346" y="44" fill="#059669" font-size="18" font-weight="800">96 / 100</text>
+      </g>
+
+      <!-- Plain Language Bulleted Breakdown -->
+      <g transform="translate(24, 146)">
+        <circle cx="6" cy="10" r="4" fill="#2563eb"/>
+        <text x="20" y="14" fill="#0f172a" font-size="14" font-weight="700">Notice Period:</text>
+        <text x="130" y="14" fill="#334155" font-size="14">Your landlord must give you at least 24 hours written notice.</text>
+
+        <circle cx="6" cy="40" r="4" fill="#2563eb"/>
+        <text x="20" y="44" fill="#0f172a" font-size="14" font-weight="700">Daylight Entry:</text>
+        <text x="134" y="44" fill="#334155" font-size="14">Visits must take place during normal daytime hours only.</text>
+
+        <circle cx="6" cy="70" r="4" fill="#059669"/>
+        <text x="20" y="74" fill="#0f172a" font-size="14" font-weight="700">Tenant Rights:</text>
+        <text x="134" y="74" fill="#334155" font-size="14">You are not liable for normal wear and tear on fixtures.</text>
+      </g>
+
+      <!-- Mini Audio Player Bar -->
+      <g transform="translate(24, 250)">
+        <rect x="0" y="0" width="498" height="50" rx="10" fill="#f1f5f9"/>
+        <circle cx="28" cy="25" r="15" fill="#2563eb"/>
+        <path d="M25 19 L34 25 L25 31 Z" fill="#ffffff"/>
+        <text x="56" y="29" fill="#0f172a" font-size="13" font-weight="700">Listen to Audio Summary</text>
+        <!-- Audio waves -->
+        <rect x="230" y="20" width="3" height="10" rx="1.5" fill="#94a3b8"/>
+        <rect x="238" y="15" width="3" height="20" rx="1.5" fill="#2563eb"/>
+        <rect x="246" y="12" width="3" height="26" rx="1.5" fill="#2563eb"/>
+        <rect x="254" y="18" width="3" height="14" rx="1.5" fill="#2563eb"/>
+        <rect x="262" y="21" width="3" height="8" rx="1.5" fill="#94a3b8"/>
+        <rect x="270" y="16" width="3" height="18" rx="1.5" fill="#2563eb"/>
+        <rect x="278" y="22" width="3" height="6" rx="1.5" fill="#94a3b8"/>
+        <text x="440" y="29" fill="#64748b" font-size="12" font-weight="600">0:24 / 0:52</text>
+      </g>
+    </g>
+  </g>
+</svg>

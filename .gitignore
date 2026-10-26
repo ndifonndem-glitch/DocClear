@@ -33,6 +33,11 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Next.js
+.next/
+out/
+build/
+
 # typescript
 *.tsbuildinfo
 

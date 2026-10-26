@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" width="900" height="640" style="background:#ffffff; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <!-- Header -->
+  <rect x="0" y="0" width="900" height="70" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="32" y="42" fill="#0f172a" font-size="20" font-weight="900">DocClear — Design Tokens &amp; Component Styles</text>
+  <text x="740" y="42" fill="#64748b" font-size="13" font-weight="600">Figma UI Kit v2.0</text>
+
+  <!-- COLUMN 1: Color Palette -->
+  <g transform="translate(32, 100)">
+    <text x="0" y="0" fill="#0f172a" font-size="15" font-weight="800">1. Core Color System</text>
+    
+    <!-- Primary Blue -->
+    <rect x="0" y="16" width="120" height="60" rx="8" fill="#2563eb"/>
+    <text x="130" y="42" fill="#0f172a" font-size="13" font-weight="700">Primary Blue</text>
+    <text x="130" y="60" fill="#64748b" font-size="12">#2563EB • Actions, CTAs</text>
+
+    <!-- Cyan Laser -->
+    <rect x="0" y="86" width="120" height="60" rx="8" fill="#22d3ee"/>
+    <text x="130" y="112" fill="#0f172a" font-size="13" font-weight="700">Cyan Scanner</text>
+    <text x="130" y="130" fill="#64748b" font-size="12">#22D3EE • Laser, HUD</text>
+
+    <!-- Success Emerald -->
+    <rect x="0" y="156" width="120" height="60" rx="8" fill="#059669"/>
+    <text x="130" y="182" fill="#0f172a" font-size="13" font-weight="700">Success Emerald</text>
+    <text x="130" y="200" fill="#64748b" font-size="12">#059669 • Safe, Verified</text>
+
+    <!-- Warning Amber -->
+    <rect x="0" y="226" width="120" height="60" rx="8" fill="#d97706"/>
+    <text x="130" y="252" fill="#0f172a" font-size="13" font-weight="700">Advisory Amber</text>
+    <text x="130" y="270" fill="#64748b" font-size="12">#D97706 • Caution Banners</text>
+
+    <!-- Dark Slate -->
+    <rect x="0" y="296" width="120" height="60" rx="8" fill="#0f172a"/>
+    <text x="130" y="322" fill="#0f172a" font-size="13" font-weight="700">Dark Slate</text>
+    <text x="130" y="340" fill="#64748b" font-size="12">#0F172A • Primary Headings</text>
+
+    <!-- Light Surface -->
+    <rect x="0" y="366" width="120" height="60" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="130" y="392" fill="#0f172a" font-size="13" font-weight="700">Surface Slate</text>
+    <text x="130" y="410" fill="#64748b" font-size="12">#F8FAFC • App Canvas</text>
+  </g>
+
+  <!-- COLUMN 2: Typography Scale & Timeline Tags -->
+  <g transform="translate(340, 100)">
+    <text x="0" y="0" fill="#0f172a" font-size="15" font-weight="800">2. Typography Hierarchy</text>
+
+    <text x="0" y="36" fill="#0f172a" font-size="28" font-weight="900">Heading 1 (28px Bold)</text>
+    <text x="0" y="70" fill="#0f172a" font-size="20" font-weight="800">Heading 2 / Screen Title (20px)</text>
+    <text x="0" y="100" fill="#0f172a" font-size="16" font-weight="700">Subheading / Card Title (16px)</text>
+    <text x="0" y="128" fill="#334155" font-size="14" font-weight="400">Body Regular (14px, line-height 22px)</text>
+    <text x="0" y="152" fill="#64748b" font-size="12" font-weight="500">Caption / Meta Info (12px Slate-500)</text>
+
+    <!-- Badges & Status Pills -->
+    <text x="0" y="210" fill="#0f172a" font-size="15" font-weight="800">3. Status Badges &amp; Tags</text>
+    
+    <g transform="translate(0, 230)">
+      <rect x="0" y="0" width="80" height="24" rx="6" fill="#eff6ff"/>
+      <text x="40" y="16" fill="#2563eb" font-size="11" font-weight="800" text-anchor="middle">START</text>
+
+      <rect x="92" y="0" width="104" height="24" rx="6" fill="#f0fdf4"/>
+      <text x="144" y="16" fill="#16a34a" font-size="11" font-weight="800" text-anchor="middle">RECURRING</text>
+
+      <rect x="208" y="0" width="130" height="24" rx="6" fill="#fef2f2"/>
+      <text x="273" y="16" fill="#dc2626" font-size="11" font-weight="800" text-anchor="middle">ACTION NEEDED</text>
+    </g>
+
+    <g transform="translate(0, 268)">
+      <rect x="0" y="0" width="150" height="26" rx="13" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1"/>
+      <text x="75" y="17" fill="#059669" font-size="11" font-weight="700" text-anchor="middle">Simplified successfully</text>
+
+      <rect x="160" y="0" width="160" height="26" rx="13" fill="#fef3c7" stroke="#fde68a" stroke-width="1"/>
+      <text x="240" y="17" fill="#b45309" font-size="11" font-weight="700" text-anchor="middle">Advisory Disclaimer</text>
+    </g>
+  </g>
+
+  <!-- COLUMN 3: Button Components -->
+  <g transform="translate(680, 100)">
+    <text x="0" y="0" fill="#0f172a" font-size="15" font-weight="800">4. Interactive Buttons</text>
+
+    <!-- Primary 56px -->
+    <text x="0" y="32" fill="#64748b" font-size="12" font-weight="600">Primary Mobile Action (56px)</text>
+    <rect x="0" y="42" width="190" height="54" rx="12" fill="#2563eb"/>
+    <text x="95" y="74" fill="#ffffff" font-size="15" font-weight="700" text-anchor="middle">Scan Document</text>
+
+    <!-- Secondary Outline -->
+    <text x="0" y="126" fill="#64748b" font-size="12" font-weight="600">Secondary Action (Outline)</text>
+    <rect x="0" y="136" width="190" height="46" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="95" y="165" fill="#0f172a" font-size="14" font-weight="700" text-anchor="middle">Upload File</text>
+
+    <!-- Camera Shutter Button -->
+    <text x="0" y="214" fill="#64748b" font-size="12" font-weight="600">Camera Shutter (72px)</text>
+    <circle cx="95" cy="265" r="34" fill="none" stroke="#ffffff" stroke-width="3.5" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.15))"/>
+    <circle cx="95" cy="265" r="28" fill="#2563eb"/>
+
+    <!-- Audio Player Pill -->
+    <text x="0" y="336" fill="#64748b" font-size="12" font-weight="600">Audio Pill Controller</text>
+    <rect x="0" y="348" width="190" height="40" rx="20" fill="#2563eb"/>
+    <circle cx="20" cy="368" r="10" fill="#ffffff"/>
+    <path d="M18 363 L24 368 L18 373 Z" fill="#2563eb"/>
+    <text x="36" y="373" fill="#ffffff" font-size="12" font-weight="700">Listen Summary</text>
+  </g>
+</svg>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open DocClear on Your Phone</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 1.5rem;
+      padding: 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #38bdf8;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .qr-container {
+      background: white;
+      padding: 1rem;
+      border-radius: 1rem;
+      display: inline-block;
+      margin-bottom: 1.5rem;
+    }
+    .url-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #38bdf8;
+      word-break: break-all;
+      margin-bottom: 1.5rem;
+    }
+    .steps {
+      text-align: left;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+    .steps strong {
+      color: #f8fafc;
+    }
+    .badge {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">NGROK LIVE TUNNEL</div>
+    <h1>Open DocClear on Your Phone</h1>
+    <p>Scan the QR code below with your phone camera to open DocClear immediately:</p>
+
+    <div class="qr-container">
+      <img 
+        src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fovermournfully-overnervous-narcisa.ngrok-free.dev" 
+        alt="DocClear Phone QR Code"
+        width="220" 
+        height="220"
+      />
+    </div>
+
+    <div class="url-box">
+      https://overmournfully-overnervous-narcisa.ngrok-free.dev
+    </div>
+
+    <div class="steps">
+      <strong>📱 3 Steps on Your Phone:</strong><br>
+      1. Point your phone camera at the QR code and tap the link.<br>
+      2. If ngrok shows a blue button saying <strong>"Visit Site"</strong>, tap it.<br>
+      3. Tap <strong>"Use camera"</strong> to scan physical documents with your real phone camera, or select <strong>"Add to Home Screen"</strong> in your browser menu to install it as an app!
+    </div>
+  </div>
+</body>
+</html>

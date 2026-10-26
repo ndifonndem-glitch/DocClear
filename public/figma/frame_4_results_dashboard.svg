@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 1680" width="390" height="1680" style="background:#f8fafc; font-family:system-ui, -apple-system, sans-serif;">
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <!-- Frame Background -->
+  <rect width="390" height="1680" fill="#f8fafc"/>
+
+  <!-- Top Mobile Status Bar -->
+  <text x="28" y="28" font-size="14" font-weight="700" fill="#0f172a">9:41</text>
+  <circle cx="340" cy="24" r="3" fill="#0f172a"/>
+  <circle cx="348" cy="24" r="3" fill="#0f172a"/>
+  <rect x="356" y="20" width="16" height="8" rx="2" fill="none" stroke="#0f172a" stroke-width="1.5"/>
+  <rect x="358" y="22" width="10" height="4" rx="1" fill="#0f172a"/>
+
+  <!-- Top Navbar -->
+  <g transform="translate(0, 44)">
+    <rect width="390" height="56" fill="#ffffff" filter="url(#shadow)"/>
+    <rect x="20" y="14" width="28" height="28" rx="8" fill="#2563eb"/>
+    <path d="M28 22h8M28 26h12M28 30h9" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <text x="56" y="33" font-size="18" font-weight="800" fill="#0f172a" letter-spacing="-0.5">DocClear</text>
+    <rect x="142" y="19" width="34" height="18" rx="9" fill="#eff6ff" stroke="#bfdbfe"/>
+    <text x="149" y="32" font-size="10" font-weight="700" fill="#2563eb">PWA</text>
+
+    <rect x="280" y="14" width="90" height="28" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="325" y="32" font-size="11" font-weight="700" fill="#334155" text-anchor="middle">Start over</text>
+  </g>
+
+  <!-- Main Content -->
+  <g transform="translate(20, 116)">
+    <!-- Status Pill -->
+    <rect x="0" y="0" width="138" height="24" rx="12" fill="#ecfdf5" stroke="#a7f3d0"/>
+    <text x="12" y="16" font-size="11" font-weight="700" fill="#065f46">Simplified successfully</text>
+
+    <!-- Title & Subtitle -->
+    <text x="0" y="52" font-size="26" font-weight="800" fill="#0f172a" letter-spacing="-0.5">Employment agreement</text>
+    <text x="0" y="74" font-size="12" font-weight="500" fill="#64748b">A full-time job offer for Jordan Smith at Northstar</text>
+    <text x="0" y="90" font-size="12" font-weight="500" fill="#64748b">Technologies Ltd., starting 2 November 2026.</text>
+
+    <!-- Top Audio Player Card -->
+    <g transform="translate(0, 108)">
+      <rect width="350" height="56" rx="16" fill="#0f172a" filter="url(#shadow)"/>
+      <circle cx="28" cy="28" r="16" fill="#ffffff"/>
+      <polygon points="26,22 34,28 26,34" fill="#0f172a"/>
+      <text x="56" y="24" font-size="13" font-weight="700" fill="#ffffff">Listen to summary</text>
+      <text x="56" y="40" font-size="11" font-weight="500" fill="#94a3b8">Speed 1.25x</text>
+    </g>
+
+    <!-- TOP 3 METRIC CARDS -->
+    <!-- Metric 1: Monthly Salary -->
+    <g transform="translate(0, 180)">
+      <rect width="350" height="84" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="24" font-size="11" font-weight="700" fill="#64748b" letter-spacing="0.5">MONTHLY SALARY</text>
+      <text x="16" y="54" font-size="26" font-weight="800" fill="#1d4ed8">₹35,000</text>
+      <text x="16" y="72" font-size="11" font-weight="500" fill="#64748b">Before tax and deductions, paid last working day</text>
+    </g>
+
+    <!-- Metric 2: Start Date -->
+    <g transform="translate(0, 276)">
+      <rect width="350" height="84" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="24" font-size="11" font-weight="700" fill="#64748b" letter-spacing="0.5">START DATE</text>
+      <text x="16" y="54" font-size="26" font-weight="800" fill="#0f172a">2 Nov 2026</text>
+      <text x="16" y="72" font-size="11" font-weight="500" fill="#64748b">First day of employment and start of probation</text>
+    </g>
+
+    <!-- Metric 3: Working Hours -->
+    <g transform="translate(0, 372)">
+      <rect width="350" height="84" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="24" font-size="11" font-weight="700" fill="#64748b" letter-spacing="0.5">WORKING HOURS</text>
+      <text x="16" y="54" font-size="26" font-weight="800" fill="#0f172a">40 hours/week</text>
+      <text x="16" y="72" font-size="11" font-weight="500" fill="#64748b">Monday to Friday, 9:00 AM to 5:00 PM</text>
+    </g>
+
+    <!-- MIDDLE 3 DETAIL CARDS -->
+    <!-- Detail 1: Who and What -->
+    <g transform="translate(0, 474)">
+      <rect width="350" height="125" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="24" font-size="11" font-weight="800" fill="#2563eb" letter-spacing="0.5">WHO AND WHAT</text>
+      <text x="16" y="46" font-size="12" font-weight="500" fill="#64748b">Employee</text>
+      <text x="334" y="46" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">Jordan Smith</text>
+      <text x="16" y="68" font-size="12" font-weight="500" fill="#64748b">Employer</text>
+      <text x="334" y="68" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">Northstar Tech Ltd.</text>
+      <text x="16" y="90" font-size="12" font-weight="500" fill="#64748b">Position</text>
+      <text x="334" y="90" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">Junior Developer</text>
+      <text x="16" y="112" font-size="11" font-weight="600" fill="#2563eb">See in original →</text>
+    </g>
+
+    <!-- Detail 2: Pay and Time -->
+    <g transform="translate(0, 611)">
+      <rect width="350" height="125" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="24" font-size="11" font-weight="800" fill="#059669" letter-spacing="0.5">PAY AND TIME</text>
+      <text x="16" y="46" font-size="12" font-weight="500" fill="#64748b">Pay schedule</text>
+      <text x="334" y="46" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">Last working day</text>
+      <text x="16" y="68" font-size="12" font-weight="500" fill="#64748b">Working hours</text>
+      <text x="334" y="68" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">40 hrs (Mon-Fri)</text>
+      <text x="16" y="90" font-size="12" font-weight="500" fill="#64748b">Daily break</text>
+      <text x="334" y="90" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">1 hour lunch</text>
+      <text x="16" y="112" font-size="11" font-weight="600" fill="#2563eb">See in original →</text>
+    </g>
+
+    <!-- Detail 3: Leave and Terms -->
+    <g transform="translate(0, 748)">
+      <rect width="350" height="125" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="24" font-size="11" font-weight="800" fill="#d97706" letter-spacing="0.5">LEAVE AND TERMS</text>
+      <text x="16" y="46" font-size="12" font-weight="500" fill="#64748b">Annual paid leave</text>
+      <text x="334" y="46" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">18 days</text>
+      <text x="16" y="68" font-size="12" font-weight="500" fill="#64748b">Probation</text>
+      <text x="334" y="68" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">3 months</text>
+      <text x="16" y="90" font-size="12" font-weight="500" fill="#64748b">Notice required</text>
+      <text x="334" y="90" font-size="12" font-weight="700" fill="#0f172a" text-anchor="end">30 calendar days</text>
+      <text x="16" y="112" font-size="11" font-weight="600" fill="#2563eb">See in original →</text>
+    </g>
+
+    <!-- KEY DATES AND ACTIONS SECTION (Image 1 Timeline) -->
+    <text x="0" y="905" font-size="18" font-weight="800" fill="#0f172a">Key dates and actions</text>
+
+    <!-- Timeline Item 1 -->
+    <g transform="translate(0, 920)">
+      <rect width="350" height="84" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <circle cx="16" cy="18" r="4" fill="#2563eb"/>
+      <text x="26" y="22" font-size="10" font-weight="800" fill="#0f172a">2 NOVEMBER 2026</text>
+      <rect x="136" y="11" width="46" height="16" rx="4" fill="#eef2ff"/>
+      <text x="145" y="23" font-size="9" font-weight="700" fill="#4338ca">START</text>
+      <text x="16" y="46" font-size="13" font-weight="700" fill="#0f172a">Employment starts</text>
+      <text x="16" y="62" font-size="11" font-weight="500" fill="#64748b">Your first day of work. The 3-month probation period begins.</text>
+      <text x="16" y="76" font-size="10" font-weight="600" fill="#2563eb">Add to calendar</text>
+    </g>
+
+    <!-- Timeline Item 2 -->
+    <g transform="translate(0, 1014)">
+      <rect width="350" height="84" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <circle cx="16" cy="18" r="4" fill="#059669"/>
+      <text x="26" y="22" font-size="10" font-weight="800" fill="#0f172a">LAST WORKING DAY OF EACH MONTH</text>
+      <rect x="236" y="11" width="70" height="16" rx="4" fill="#ecfdf5"/>
+      <text x="244" y="23" font-size="9" font-weight="700" fill="#047857">RECURRING</text>
+      <text x="16" y="46" font-size="13" font-weight="700" fill="#0f172a">Salary is paid</text>
+      <text x="16" y="62" font-size="11" font-weight="500" fill="#64748b">Gross salary of ₹35,000, before taxes and lawful deductions.</text>
+      <text x="16" y="76" font-size="10" font-weight="600" fill="#2563eb">Add to calendar</text>
+    </g>
+
+    <!-- Timeline Item 3 -->
+    <g transform="translate(0, 1108)">
+      <rect width="350" height="84" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <circle cx="16" cy="18" r="4" fill="#d97706"/>
+      <text x="26" y="22" font-size="10" font-weight="800" fill="#0f172a">AT LEAST 7 DAYS BEFORE YOUR LEAVE</text>
+      <rect x="234" y="11" width="94" height="16" rx="4" fill="#fef3c7"/>
+      <text x="240" y="23" font-size="9" font-weight="700" fill="#b45309">ACTION NEEDED</text>
+      <text x="16" y="46" font-size="13" font-weight="700" fill="#0f172a">Send your leave request to your manager</text>
+      <text x="16" y="62" font-size="11" font-weight="500" fill="#64748b">Needed to take paid annual leave, except in emergencies.</text>
+      <text x="16" y="76" font-size="10" font-weight="600" fill="#2563eb">Add to calendar</text>
+    </g>
+
+    <!-- PLAIN-LANGUAGE SUMMARY SECTION -->
+    <g transform="translate(0, 1210)">
+      <rect width="350" height="120" rx="16" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="16" y="26" font-size="14" font-weight="800" fill="#0f172a">Plain-Language Summary</text>
+      <rect x="230" y="12" width="104" height="20" rx="10" fill="#ecfdf5"/>
+      <text x="238" y="26" font-size="10" font-weight="700" fill="#065f46">Grade 6.8 (52% simpler)</text>
+      <text x="16" y="54" font-size="11" font-weight="500" fill="#334155">This contract sets out terms for Jordan Smith as Junior Developer</text>
+      <text x="16" y="70" font-size="11" font-weight="500" fill="#334155">at Northstar Technologies Ltd., starting 2 Nov 2026. Standard hours</text>
+      <text x="16" y="86" font-size="11" font-weight="500" fill="#334155">are 40 hrs/wk with ₹35,000 monthly gross pay, 18 paid leave days,</text>
+      <text x="16" y="102" font-size="11" font-weight="500" fill="#334155">3-month probation, and a 30-day resignation notice period.</text>
+    </g>
+
+    <!-- ADVISORY BANNER (Image 1 Note) -->
+    <g transform="translate(0, 1345)">
+      <rect width="350" height="58" rx="14" fill="#fefce8" stroke="#fef08a"/>
+      <text x="14" y="24" font-size="11" font-weight="800" fill="#854d0e">Check the original:</text>
+      <text x="122" y="24" font-size="10" font-weight="500" fill="#854d0e">DocClear is a comprehension aid, not legal advice.</text>
+      <text x="14" y="42" font-size="10" font-weight="500" fill="#854d0e">Confirm payments, dates and penalties directly in your document.</text>
+    </g>
+
+    <!-- IN-FLOW AUDIO PLAYER BAR (Matching Image 1) -->
+    <g transform="translate(0, 1420)">
+      <rect width="350" height="52" rx="16" fill="#0f172a" filter="url(#shadow)"/>
+      <circle cx="28" cy="26" r="14" fill="#ffffff"/>
+      <polygon points="26,21 33,26 26,31" fill="#0f172a"/>
+      <text x="52" y="24" font-size="12" font-weight="700" fill="#ffffff">Listen to the simplified version</text>
+      <line x1="52" y1="36" x2="280" y2="36" stroke="#334155" stroke-width="3" stroke-linecap="round"/>
+      <line x1="52" y1="36" x2="130" y2="36" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+      <rect x="296" y="15" width="40" height="22" rx="8" fill="#2563eb"/>
+      <text x="316" y="30" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">1x</text>
+    </g>
+
+    <!-- BOTTOM ACTION BUTTONS -->
+    <g transform="translate(0, 1488)">
+      <rect x="0" y="0" width="168" height="42" rx="12" fill="#2563eb"/>
+      <text x="84" y="26" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">Save as PDF / Print</text>
+
+      <rect x="182" y="0" width="168" height="42" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="266" y="26" font-size="12" font-weight="600" fill="#334155" text-anchor="middle">Download text</text>
+
+      <rect x="0" y="50" width="168" height="42" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="84" y="76" font-size="12" font-weight="600" fill="#334155" text-anchor="middle">Copy summary</text>
+
+      <rect x="182" y="50" width="168" height="42" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="266" y="76" font-size="12" font-weight="600" fill="#334155" text-anchor="middle">View original</text>
+    </g>
+  </g>
+</svg>

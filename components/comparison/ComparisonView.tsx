@@ -1,0 +1,857 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Check,
+  Copy,
+  Download,
+  Printer,
+  FileText,
+  X,
+  Calendar,
+  BookOpen,
+  Sparkles,
+  HelpCircle,
+  Volume2,
+  CheckCircle2,
+} from "lucide-react";
+import { SimplificationResponse, ExtractedDeadline } from "@/types/api";
+import { CalendarExportPopover } from "@/components/calendar/CalendarExportPopover";
+
+export interface ComparisonViewProps {
+  data: SimplificationResponse;
+}
+
+export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [currentSentenceIdx, setCurrentSentenceIdx] = useState<number>(-1);
+  const [sentences, setSentences] = useState<string[]>([]);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isOriginalModalOpen, setIsOriginalModalOpen] = useState(false);
+  const [downloadedEventIndex, setDownloadedEventIndex] = useState<number | null>(null);
+  const [mobileCompareTab, setMobileCompareTab] = useState<"simplified" | "original">("simplified");
+
+  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const sentenceIndexRef = useRef<number>(0);
+  const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Prepare clean sentences for speech synthesis queue
+  useEffect(() => {
+    const fullText = `${data.document_title || "Document summary"}. ${
+      data.document_subtitle || ""
+    }. ${data.simplified_text}`;
+
+    // Split into readable sentences without cutting abbreviations
+    const splitSentences = fullText
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    setSentences(splitSentences);
+
+    return () => {
+      stopSpeech();
+    };
+  }, [data]);
+
+  // Mobile Web Speech Keep-Alive (Prevents Safari/Chrome from cutting off after 15s)
+  const startKeepAlive = () => {
+    if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
+    keepAliveIntervalRef.current = setInterval(() => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }
+    }, 10000);
+  };
+
+  const stopKeepAlive = () => {
+    if (keepAliveIntervalRef.current) {
+      clearInterval(keepAliveIntervalRef.current);
+      keepAliveIntervalRef.current = null;
+    }
+  };
+
+  // Find best available English voice on device
+  const getPreferredVoice = (): SpeechSynthesisVoice | null => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    // Prioritize natural / enhanced mobile English voices
+    return (
+      voices.find((v) => /natural|enhanced|google|samantha|daniel|karen/i.test(v.name) && v.lang.startsWith("en")) ||
+      voices.find((v) => v.lang === "en-US") ||
+      voices.find((v) => v.lang.startsWith("en")) ||
+      voices[0]
+    );
+  };
+
+  const playSentenceAtIndex = (index: number, speed: number) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (index >= sentences.length) {
+      // Completed reading
+      stopSpeech();
+      return;
+    }
+
+    sentenceIndexRef.current = index;
+    setCurrentSentenceIdx(index);
+
+    const utterance = new SpeechSynthesisUtterance(sentences[index]);
+    utterance.rate = speed;
+    utterance.pitch = 1.0;
+    utterance.lang = "en-US";
+
+    const voice = getPreferredVoice();
+    if (voice) utterance.voice = voice;
+
+    utterance.onend = () => {
+      if (sentenceIndexRef.current < sentences.length - 1) {
+        playSentenceAtIndex(sentenceIndexRef.current + 1, speed);
+      } else {
+        stopSpeech();
+      }
+    };
+
+    utterance.onerror = (e) => {
+      console.warn("Speech synthesis notice:", e);
+      stopSpeech();
+    };
+
+    activeUtteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handlePlayToggle = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      alert("Text-to-speech is not supported by your mobile browser.");
+      return;
+    }
+
+    if (isPlaying && !isPaused) {
+      // Pause
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+      stopKeepAlive();
+    } else if (isPlaying && isPaused) {
+      // Resume
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+      startKeepAlive();
+    } else {
+      // Start from beginning or current sentence
+      window.speechSynthesis.cancel();
+      setIsPlaying(true);
+      setIsPaused(false);
+      startKeepAlive();
+      playSentenceAtIndex(0, playbackSpeed);
+    }
+  };
+
+  const stopSpeech = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlaying(false);
+    setIsPaused(false);
+    setCurrentSentenceIdx(-1);
+    sentenceIndexRef.current = 0;
+    stopKeepAlive();
+  };
+
+  const cycleSpeed = () => {
+    const speeds = [1, 1.25, 1.5, 0.75];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const nextSpeed = speeds[nextIdx];
+    setPlaybackSpeed(nextSpeed);
+
+    if (isPlaying) {
+      const currentIdx = sentenceIndexRef.current;
+      window.speechSynthesis.cancel();
+      playSentenceAtIndex(currentIdx, nextSpeed);
+    }
+  };
+
+  const handleCopy = () => {
+    const summaryText = `Document: ${data.document_title || "Document"}\n\nSummary:\n${
+      data.simplified_text
+    }\n\nKey Points:\n${data.key_points.map((p) => `• ${p}`).join("\n")}`;
+    navigator.clipboard.writeText(summaryText);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const divider = "================================================================================";
+    const subDivider = "--------------------------------------------------------------------------------";
+
+    const metricsText = (data.hero_metrics || [])
+      .map((m) => `  * ${m.label.toUpperCase()}: ${m.value} (${m.subtext})`)
+      .join("\n");
+
+    const timelineText = (data.structured_deadlines || [])
+      .map(
+        (d, i) =>
+          `  ${i + 1}. [${d.dateOrDuration}] ${d.title || d.actionRequired}\n     Context: ${
+            d.description || d.consequenceOrContext || "Scheduled obligation"
+          }`
+      )
+      .join("\n\n");
+
+    const keyPointsText = data.key_points.map((p) => `  * ${p}`).join("\n");
+
+    const vocabularyText = (data.vocabulary || [])
+      .map((v) => `  * ${v.term.toUpperCase()}: ${v.explanation}`)
+      .join("\n");
+
+    const summaryText = [
+      divider,
+      `DOCCLEAR ACCESSIBLE DOCUMENT SUMMARY`,
+      divider,
+      `Title:      ${data.document_title || "Document Summary"}`,
+      `Subtitle:   ${data.document_subtitle || ""}`,
+      `Date:       ${new Date().toLocaleDateString("en-NZ", { dateStyle: "long" })}`,
+      `Compliance: IT8530 Plain-Language Comprehension Aid`,
+      "",
+      subDivider,
+      `KEY METRICS AT A GLANCE`,
+      subDivider,
+      metricsText || "  No primary numerical metrics extracted.",
+      "",
+      subDivider,
+      `PLAIN-LANGUAGE SUMMARY`,
+      subDivider,
+      data.simplified_text,
+      "",
+      subDivider,
+      `ESSENTIAL TAKEAWAYS`,
+      subDivider,
+      keyPointsText,
+      "",
+      subDivider,
+      `KEY DATES AND REQUIRED ACTIONS`,
+      subDivider,
+      timelineText || "  No time-sensitive deadlines extracted.",
+      "",
+      subDivider,
+      `KEYWORDS & TRICKY TERMS EXPLAINED`,
+      subDivider,
+      vocabularyText || "  Standard vocabulary used.",
+      "",
+      subDivider,
+      `VERIFICATION NOTICE`,
+      subDivider,
+      `Check against original: ${
+        data.cautionary_note || "Verify all figures, formal dates, and liabilities against the source."
+      }`,
+      `DocClear is an educational accessibility aid, not formal legal, medical, or financial advice.`,
+      "",
+      divider,
+      `ORIGINAL SOURCE TEXT`,
+      divider,
+      data.original_text,
+      divider,
+    ].join("\n");
+
+    const blob = new Blob([summaryText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${(data.document_title || "docclear_summary").toLowerCase().replace(/\s+/g, "_")}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Download Standard iCalendar (.ics) Event
+  const downloadCalendarEvent = (item: ExtractedDeadline, idx: number) => {
+    const title = item.title || item.actionRequired || "Document Action Item";
+    const desc = item.description || item.consequenceOrContext || item.actionRequired || "";
+    const now = new Date();
+    const nowStr = now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//DocClear//Accessibility Calendar//EN",
+      "BEGIN:VEVENT",
+      `UID:${Date.now()}-${idx}@docclear.pwa`,
+      `DTSTAMP:${nowStr}`,
+      `SUMMARY:${title.replace(/\n/g, " ")}`,
+      `DESCRIPTION:${(desc + " | Timing: " + item.dateOrDuration).replace(/\n/g, " ")}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setDownloadedEventIndex(idx);
+    setTimeout(() => setDownloadedEventIndex(null), 2500);
+  };
+
+  // Safe fallback metrics if missing
+  const heroMetrics =
+    data.hero_metrics && data.hero_metrics.length >= 3
+      ? data.hero_metrics
+      : [
+          { label: "Document Status", value: "Verified", subtext: "Processed & structured" },
+          { label: "Comprehension", value: "Everyday Words", subtext: "Accessible plain language" },
+          { label: "Key Terms", value: "Preserved", subtext: "Direct from source" },
+        ];
+
+  // Safe fallback detail sections if missing
+  const detailSections =
+    data.detail_sections && data.detail_sections.length >= 3
+      ? data.detail_sections
+      : [
+          {
+            title: "DOCUMENT OVERVIEW",
+            theme: "blue" as const,
+            items: [
+              { label: "Document", value: data.document_title || "Summary" },
+              { label: "Status", value: "Extracted & Verified" },
+              { label: "Accessibility", value: "Plain language format" },
+            ],
+          },
+          {
+            title: "TIMING & DEADLINES",
+            theme: "green" as const,
+            items: [
+              { label: "Timeline", value: "Check schedule below" },
+              { label: "Obligations", value: "Preserved from original" },
+              { label: "Compliance", value: "Action items highlighted" },
+            ],
+          },
+          {
+            title: "TERMS & CONDITIONS",
+            theme: "orange" as const,
+            items: [
+              { label: "Verification", value: "Confirm with original document" },
+              { label: "Comprehension", value: "Educational accessibility aid" },
+              { label: "Disclaimers", value: "See verification notice below" },
+            ],
+          },
+        ];
+
+  const timelineDeadlines = data.structured_deadlines || [];
+
+  return (
+    <div className="space-y-6 sm:space-y-8 pb-36 sm:pb-28 max-w-5xl mx-auto px-2 sm:px-0">
+      {/* Top Header */}
+      <div className="space-y-2 border-b border-slate-200/80 pb-4">
+        <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+          Simplified successfully
+        </div>
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+          {data.document_title || "Document Summary"}
+        </h1>
+        <p className="text-slate-600 text-xs sm:text-base max-w-2xl leading-relaxed">
+          {data.document_subtitle ||
+            "Plain-language explanation of critical terms, payment schedules, and obligations."}
+        </p>
+      </div>
+
+      {/* Top 3 Metric Cards Row (Responsive Grid - No Orphan Cards) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {heroMetrics.map((metric, idx) => (
+          <div
+            key={idx}
+            className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1"
+          >
+            <span className="text-xs font-bold text-slate-600 block uppercase tracking-wide">
+              {metric.label}
+            </span>
+            <div
+              className={`text-2xl sm:text-3xl font-extrabold tracking-tight my-1 ${
+                idx === 0 ? "text-blue-700" : "text-slate-900"
+              }`}
+            >
+              {metric.value}
+            </div>
+            <span className="text-xs text-slate-600 block leading-normal">{metric.subtext}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Middle 3 Category Detail Cards Row (No Orphan Cards on Desktop/Tablet) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {detailSections.map((section, idx) => {
+          const headerColor =
+            section.theme === "blue"
+              ? "text-blue-700"
+              : section.theme === "green"
+              ? "text-emerald-700"
+              : "text-amber-800";
+
+          return (
+            <div
+              key={idx}
+              className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-4"
+            >
+              <div className="space-y-3">
+                <span className={`text-xs font-extrabold uppercase tracking-wider block ${headerColor}`}>
+                  {section.title}
+                </span>
+
+                <div className="space-y-2.5 text-xs sm:text-sm">
+                  {section.items.map((item, itemIdx) => (
+                    <div
+                      key={itemIdx}
+                      className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2"
+                    >
+                      <span className="text-slate-500 font-normal">{item.label}</span>
+                      <span className="font-bold text-slate-900 text-right">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsOriginalModalOpen(true)}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline text-left pt-1 focus:outline-none"
+              >
+                See in original
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* KEY DATES AND ACTIONS SECTION (Ordered timeline list with WCAG-compliant styling) */}
+      {timelineDeadlines.length > 0 && (
+        <section className="space-y-4 pt-1">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Key dates and actions
+          </h2>
+
+          <div className="space-y-3">
+            {timelineDeadlines.map((item, idx) => {
+              const rawTag = (item.tag || (item.isRecurring ? "RECURRING" : "ACTION NEEDED")).toUpperCase();
+
+              // Rule: Red is used ONLY for real penalties / defaults / fines
+              const isPenalty = /penalty|fine|default|arrears|recovery|forfeit|evict|court|enforce/i.test(
+                `${rawTag} ${item.title || ""} ${item.description || ""} ${item.consequenceOrContext || ""}`
+              );
+
+              const isStart = rawTag === "START";
+              const isRecurring = rawTag === "RECURRING";
+              const isMilestone = rawTag === "MILESTONE";
+
+              const dotColor = isPenalty
+                ? "bg-rose-600"
+                : isStart || isMilestone
+                ? "bg-blue-600"
+                : isRecurring
+                ? "bg-emerald-600"
+                : "bg-amber-600";
+
+              const badgeStyle = isPenalty
+                ? "bg-rose-50 text-rose-800 border-rose-300 font-bold"
+                : isStart
+                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                : isRecurring
+                ? "bg-teal-50 text-teal-700 border-teal-200"
+                : isMilestone
+                ? "bg-purple-50 text-purple-700 border-purple-200"
+                : "bg-amber-50 text-amber-800 border-amber-200";
+
+              return (
+                <div
+                  key={idx}
+                  className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-2.5 transition-all hover:border-slate-300"
+                >
+                  {/* Header Row: Step Number, Dot Indicator, Date & Tag */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center flex-shrink-0 border border-slate-200">
+                        {idx + 1}
+                      </span>
+                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} aria-hidden="true" />
+                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide truncate">
+                        {item.dateOrDuration}
+                      </span>
+                    </div>
+
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${badgeStyle}`}
+                    >
+                      {rawTag}
+                    </span>
+                  </div>
+
+                  {/* Action Title */}
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                    {item.title || item.actionRequired}
+                  </h3>
+
+                  {/* Context / Description */}
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    {item.description || item.consequenceOrContext || item.actionRequired}
+                  </p>
+
+                  {/* Add to Calendar Smart Popover Menu (Google, Apple/Device, Outlook) */}
+                  <div className="pt-0.5">
+                    <CalendarExportPopover
+                      item={item}
+                      documentTitle={data.document_title}
+                      documentContext={`${data.original_text || ""} ${data.simplified_text || ""} ${data.document_title || ""}`}
+                      index={idx}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* COMPARE VIEW: Side-by-side on desktop, Simple/Original tabs on phones */}
+      <section className="space-y-4">
+        {/* Mobile & Tablet Segmented Tab Controls (Visible on < 1024px) */}
+        <div className="lg:hidden flex items-center gap-2 bg-slate-200/80 p-1.5 rounded-2xl" role="tablist" aria-label="Document view tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileCompareTab === "simplified"}
+            onClick={() => setMobileCompareTab("simplified")}
+            className={`flex-1 min-h-[44px] py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 ${
+              mobileCompareTab === "simplified"
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Simplified</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileCompareTab === "original"}
+            onClick={() => setMobileCompareTab("original")}
+            className={`flex-1 min-h-[44px] py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 ${
+              mobileCompareTab === "original"
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Original Document</span>
+          </button>
+        </div>
+
+        {/* Desktop Side-by-Side Comparison Container (Visible on >= 1024px) */}
+        <div className="hidden lg:grid lg:grid-cols-2 gap-6">
+          {/* Left Column: Plain-Language Summary */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-blue-50 text-blue-700 rounded-xl">
+                  <BookOpen className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">Plain-Language Summary</h2>
+                  <p className="text-xs text-slate-600">Everyday English explanation without confusing legalese.</p>
+                </div>
+              </div>
+
+              <div className="text-slate-800 text-base leading-relaxed bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                {data.simplified_text}
+              </div>
+
+              {data.key_points && data.key_points.length > 0 && (
+                <div className="space-y-2.5 pt-2">
+                  <h3 className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                    Essential Takeaways
+                  </h3>
+                  <ul className="space-y-2">
+                    {data.key_points.map((pt, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-start gap-2.5 text-sm text-slate-700 bg-white border border-slate-200 p-2.5 rounded-xl"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 flex-shrink-0" />
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Original Source Document */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
+                  <FileText className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">Original Document Text</h2>
+                  <p className="text-xs text-slate-600">Verbatim text as scanned from the original document.</p>
+                </div>
+              </div>
+
+              <div className="text-slate-800 text-xs sm:text-sm leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap max-h-[480px] overflow-y-auto">
+                {data.original_text}
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+              * Original clauses preserved for verification purposes.
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Tabbed Content (Visible on < 1024px) */}
+        <div className="lg:hidden">
+          {mobileCompareTab === "simplified" ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-blue-50 text-blue-700 rounded-xl">
+                  <BookOpen className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">Plain-Language Summary</h2>
+                  <p className="text-xs text-slate-600">Everyday English explanation without confusing legalese.</p>
+                </div>
+              </div>
+
+              <div className="text-slate-800 text-sm sm:text-base leading-relaxed bg-slate-50/70 p-3.5 sm:p-5 rounded-xl border border-slate-100">
+                {data.simplified_text}
+              </div>
+
+              {data.key_points && data.key_points.length > 0 && (
+                <div className="space-y-2.5 pt-2">
+                  <h3 className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                    Essential Takeaways
+                  </h3>
+                  <ul className="space-y-2">
+                    {data.key_points.map((pt, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 bg-white border border-slate-200 p-2.5 rounded-xl"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 flex-shrink-0" />
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
+                  <FileText className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">Original Document Text</h2>
+                  <p className="text-xs text-slate-600">Verbatim text as scanned from the original document.</p>
+                </div>
+              </div>
+
+              <div className="text-slate-800 text-xs sm:text-sm leading-relaxed bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+                {data.original_text}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* KEYWORDS & TRICKY TERMS GLOSSARY */}
+      {data.vocabulary && data.vocabulary.length > 0 && (
+        <section className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-amber-50 text-amber-800 rounded-xl">
+              <HelpCircle className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">Keywords & Tricky Terms</h2>
+              <p className="text-xs text-slate-600">
+                Definitions for legal, tenancy, and employment terms in this document.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {data.vocabulary.map((v, idx) => (
+              <div
+                key={idx}
+                className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-1"
+              >
+                <span className="text-xs font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block capitalize">
+                  {v.term}
+                </span>
+                <p className="text-xs text-slate-700 leading-normal">{v.explanation}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Advisory Banner */}
+      <div
+        role="note"
+        aria-label="Document verification notice"
+        className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 text-xs sm:text-sm text-amber-950 leading-relaxed shadow-2xs"
+      >
+        <strong className="font-bold text-amber-950">Check against the original:</strong>{" "}
+        {data.cautionary_note ||
+          "confirm pay amounts, formal notice periods, and statutory deadlines in your document."}{" "}
+        DocClear is a comprehension aid, not legal, medical or financial advice.
+      </div>
+
+      {/* Bottom Action Buttons (Print PDF, Download TXT, Copy, View Original) */}
+      <div className="flex flex-wrap items-center gap-2.5 pt-1">
+        {/* Printable PDF Button (Mobile & Desktop) */}
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-semibold text-xs sm:text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[44px]"
+        >
+          <Printer className="w-4 h-4" />
+          <span>Save as PDF / Print</span>
+        </button>
+
+        {/* Download Formatted Text Summary */}
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-xs sm:text-sm shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[44px]"
+        >
+          <Download className="w-4 h-4 text-slate-500" />
+          <span>Download text</span>
+        </button>
+
+        {/* Copy to Clipboard */}
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-xs sm:text-sm shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[44px]"
+        >
+          {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+          <span>{isCopied ? "Copied!" : "Copy"}</span>
+        </button>
+
+        {/* View Original Modal */}
+        <button
+          type="button"
+          onClick={() => setIsOriginalModalOpen(true)}
+          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-xs sm:text-sm shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[44px]"
+        >
+          <FileText className="w-4 h-4 text-slate-500" />
+          <span>View original</span>
+        </button>
+      </div>
+
+      {/* Original Document Modal */}
+      {isOriginalModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-base sm:text-lg text-slate-900">Original Document Text</h3>
+              <button
+                type="button"
+                onClick={() => setIsOriginalModalOpen(false)}
+                className="w-11 h-11 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 min-h-[44px] min-w-[44px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Close original text viewer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 font-mono text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+              {data.original_text}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setIsOriginalModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 min-h-[44px] inline-flex items-center justify-center"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SOLE STICKY BOTTOM AUDIO PLAYER BAR (Never covers content due to pb-36 padding) */}
+      <aside
+        aria-label="Audio summary player"
+        className="fixed bottom-0 left-0 right-0 z-30 bg-[#0f172a] text-white p-3 sm:p-4 shadow-2xl border-t border-slate-800 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 px-2 sm:px-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={handlePlayToggle}
+              className="w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-400 min-h-[44px] min-w-[44px]"
+              aria-label={isPlaying ? (isPaused ? "Resume audio" : "Pause audio") : "Play audio summary"}
+            >
+              {isPlaying && !isPaused ? (
+                <Pause className="w-5 h-5 fill-slate-900 stroke-none" />
+              ) : (
+                <Play className="w-5 h-5 fill-slate-900 stroke-none ml-0.5" />
+              )}
+            </button>
+            <div className="min-w-0">
+              <span className="font-bold text-xs sm:text-sm text-white block truncate">
+                {isPlaying ? (isPaused ? "Paused" : "Reading aloud...") : "Listen to plain-language summary"}
+              </span>
+              <span className="text-[11px] text-slate-300 block truncate">
+                {isPlaying && currentSentenceIdx >= 0
+                  ? `Sentence ${currentSentenceIdx + 1} of ${sentences.length}`
+                  : "Natural text-to-speech voice reader"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={cycleSpeed}
+              className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 inline-flex items-center justify-center"
+              title="Click to cycle playback speed"
+            >
+              {playbackSpeed}x
+            </button>
+
+            {isPlaying && (
+              <button
+                type="button"
+                onClick={stopSpeech}
+                className="min-h-[44px] min-w-[44px] p-2.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-colors inline-flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400"
+                title="Stop playback"
+                aria-label="Stop audio playback"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+};
