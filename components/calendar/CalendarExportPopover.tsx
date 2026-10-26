@@ -139,7 +139,7 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
           ref={popoverRef}
           role="dialog"
           aria-label="Add to calendar options"
-          className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 z-50 space-y-3.5 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute left-0 right-auto mt-2 w-[min(calc(100vw-2.5rem),24rem)] bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 z-50 space-y-3.5 animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
