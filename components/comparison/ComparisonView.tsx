@@ -31,6 +31,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [currentSentenceIdx, setCurrentSentenceIdx] = useState<number>(-1);
   const [sentences, setSentences] = useState<string[]>([]);
+  const [currentTime, setCurrentTime] = useState<number>(0);
   const [isCopied, setIsCopied] = useState(false);
   const [isOriginalModalOpen, setIsOriginalModalOpen] = useState(false);
   const [downloadedEventIndex, setDownloadedEventIndex] = useState<number | null>(null);
@@ -39,6 +40,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const sentenceIndexRef = useRef<number>(0);
   const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isChangingSpeedRef = useRef<boolean>(false);
 
   // Prepare clean sentences for speech synthesis queue
   useEffect(() => {
@@ -58,6 +60,54 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
       stopSpeech();
     };
   }, [data]);
+
+  // Word counts per sentence for accurate audio duration and seeking
+  const sentenceWordCounts = React.useMemo(() => {
+    return sentences.map((s) => s.split(/\s+/).filter(Boolean).length);
+  }, [sentences]);
+
+  const totalWords = React.useMemo(() => {
+    return sentenceWordCounts.reduce((a, b) => a + b, 0);
+  }, [sentenceWordCounts]);
+
+  const cumulativeWords = React.useMemo(() => {
+    const acc: number[] = [0];
+    for (let i = 0; i < sentenceWordCounts.length; i++) {
+      acc.push(acc[i] + sentenceWordCounts[i]);
+    }
+    return acc;
+  }, [sentenceWordCounts]);
+
+  // Total duration in seconds: ~2.6 words/sec at 1.0x
+  const totalDuration = React.useMemo(() => {
+    return Math.max(5, Math.round(totalWords / (2.6 * playbackSpeed)));
+  }, [totalWords, playbackSpeed]);
+
+  const remainingTime = Math.max(0, totalDuration - currentTime);
+  const progressPercent =
+    totalDuration > 0 ? Math.min(100, Math.max(0, (currentTime / totalDuration) * 100)) : 0;
+
+  // Format seconds to m:ss
+  const formatTime = (totalSecs: number) => {
+    const rounded = Math.max(0, Math.floor(totalSecs));
+    const m = Math.floor(rounded / 60);
+    const s = rounded % 60;
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
+  // Advance timeline progress smoothly while audio is playing
+  useEffect(() => {
+    if (!isPlaying || isPaused) return;
+
+    const timer = setInterval(() => {
+      setCurrentTime((prev) => {
+        const next = prev + 0.25;
+        return next >= totalDuration ? totalDuration : next;
+      });
+    }, 250);
+
+    return () => clearInterval(timer);
+  }, [isPlaying, isPaused, totalDuration]);
 
   // Mobile Web Speech Keep-Alive (Prevents Safari/Chrome from cutting off after 15s)
   const startKeepAlive = () => {
@@ -97,13 +147,17 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const playSentenceAtIndex = (index: number, speed: number) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     if (index >= sentences.length) {
-      // Completed reading
       stopSpeech();
       return;
     }
 
     sentenceIndexRef.current = index;
     setCurrentSentenceIdx(index);
+
+    // Sync timeline clock with sentence start
+    const wordsBefore = cumulativeWords[index] || 0;
+    const estSecs = wordsBefore / (2.6 * speed);
+    setCurrentTime(estSecs);
 
     const utterance = new SpeechSynthesisUtterance(sentences[index]);
     utterance.rate = speed;
@@ -114,6 +168,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     if (voice) utterance.voice = voice;
 
     utterance.onend = () => {
+      if (isChangingSpeedRef.current) return;
       if (sentenceIndexRef.current < sentences.length - 1) {
         playSentenceAtIndex(sentenceIndexRef.current + 1, speed);
       } else {
@@ -122,6 +177,13 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     };
 
     utterance.onerror = (e) => {
+      if (
+        isChangingSpeedRef.current ||
+        (e as any).error === "canceled" ||
+        (e as any).error === "interrupted"
+      ) {
+        return;
+      }
       console.warn("Speech synthesis notice:", e);
       stopSpeech();
     };
@@ -147,12 +209,12 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
       setIsPaused(false);
       startKeepAlive();
     } else {
-      // Start from beginning or current sentence
+      // Start from current sentence position
       window.speechSynthesis.cancel();
       setIsPlaying(true);
       setIsPaused(false);
       startKeepAlive();
-      playSentenceAtIndex(0, playbackSpeed);
+      playSentenceAtIndex(sentenceIndexRef.current || 0, playbackSpeed);
     }
   };
 
@@ -164,19 +226,59 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     setIsPaused(false);
     setCurrentSentenceIdx(-1);
     sentenceIndexRef.current = 0;
+    setCurrentTime(0);
     stopKeepAlive();
   };
 
+  // Cycle speed without restarting from beginning: 1x -> 1.25x -> 1.5x -> 2x
   const cycleSpeed = () => {
-    const speeds = [1, 1.25, 1.5, 0.75];
+    const speeds = [1, 1.25, 1.5, 2];
     const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
     const nextSpeed = speeds[nextIdx];
     setPlaybackSpeed(nextSpeed);
 
-    if (isPlaying) {
-      const currentIdx = sentenceIndexRef.current;
-      window.speechSynthesis.cancel();
-      playSentenceAtIndex(currentIdx, nextSpeed);
+    if (isPlaying && !isPaused) {
+      const resumeIndex = sentenceIndexRef.current;
+      isChangingSpeedRef.current = true;
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setTimeout(() => {
+        isChangingSpeedRef.current = false;
+        playSentenceAtIndex(resumeIndex, nextSpeed);
+      }, 60);
+    }
+  };
+
+  // Seek audio timeline by clicking or dragging scrubber bar
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const targetSeconds = parseFloat(e.target.value);
+    setCurrentTime(targetSeconds);
+
+    if (totalDuration <= 0 || sentences.length === 0) return;
+
+    // Find sentence corresponding to targetSeconds
+    const targetWords = (targetSeconds / totalDuration) * totalWords;
+    let targetSentence = 0;
+    for (let i = 0; i < cumulativeWords.length - 1; i++) {
+      if (targetWords >= cumulativeWords[i] && targetWords < cumulativeWords[i + 1]) {
+        targetSentence = i;
+        break;
+      }
+    }
+
+    sentenceIndexRef.current = targetSentence;
+    setCurrentSentenceIdx(targetSentence);
+
+    if (isPlaying && !isPaused) {
+      isChangingSpeedRef.current = true;
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setTimeout(() => {
+        isChangingSpeedRef.current = false;
+        playSentenceAtIndex(targetSentence, playbackSpeed);
+      }, 60);
     }
   };
 
@@ -802,53 +904,96 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
         aria-label="Audio summary player"
         className="fixed bottom-0 left-0 right-0 z-30 bg-[#0f172a] text-white p-3 sm:p-4 shadow-2xl border-t border-slate-800 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
-        <div className="w-full max-w-[1700px] mx-auto flex items-center justify-between gap-3 px-2 sm:px-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={handlePlayToggle}
-              className="w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-400 min-h-[44px] min-w-[44px]"
-              aria-label={isPlaying ? (isPaused ? "Resume audio" : "Pause audio") : "Play audio summary"}
-            >
-              {isPlaying && !isPaused ? (
-                <Pause className="w-5 h-5 fill-slate-900 stroke-none" />
-              ) : (
-                <Play className="w-5 h-5 fill-slate-900 stroke-none ml-0.5" />
+        <div className="w-full max-w-[1700px] mx-auto space-y-2.5 px-2 sm:px-4">
+          {/* Main Controls Row */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={handlePlayToggle}
+                className="w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-400 min-h-[44px] min-w-[44px]"
+                aria-label={isPlaying ? (isPaused ? "Resume audio" : "Pause audio") : "Play audio summary"}
+              >
+                {isPlaying && !isPaused ? (
+                  <Pause className="w-5 h-5 fill-slate-900 stroke-none" />
+                ) : (
+                  <Play className="w-5 h-5 fill-slate-900 stroke-none ml-0.5" />
+                )}
+              </button>
+              <div className="min-w-0">
+                <span className="font-bold text-xs sm:text-sm text-white block truncate">
+                  {isPlaying ? (isPaused ? "Paused" : "Reading aloud...") : "Listen to plain-language summary"}
+                </span>
+                <span className="text-[11px] text-slate-300 block truncate">
+                  {isPlaying && currentSentenceIdx >= 0
+                    ? `Sentence ${currentSentenceIdx + 1} of ${sentences.length}`
+                    : "Natural text-to-speech voice reader"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={cycleSpeed}
+                className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 inline-flex items-center justify-center shadow-xs"
+                title="Click to cycle playback speed (1x, 1.25x, 1.5x, 2x)"
+              >
+                {playbackSpeed}x
+              </button>
+
+              {isPlaying && (
+                <button
+                  type="button"
+                  onClick={stopSpeech}
+                  className="min-h-[44px] min-w-[44px] p-2.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-colors inline-flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  title="Stop playback"
+                  aria-label="Stop audio playback"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
               )}
-            </button>
-            <div className="min-w-0">
-              <span className="font-bold text-xs sm:text-sm text-white block truncate">
-                {isPlaying ? (isPaused ? "Paused" : "Reading aloud...") : "Listen to plain-language summary"}
-              </span>
-              <span className="text-[11px] text-slate-300 block truncate">
-                {isPlaying && currentSentenceIdx >= 0
-                  ? `Sentence ${currentSentenceIdx + 1} of ${sentences.length}`
-                  : "Natural text-to-speech voice reader"}
-              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={cycleSpeed}
-              className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 inline-flex items-center justify-center"
-              title="Click to cycle playback speed"
-            >
-              {playbackSpeed}x
-            </button>
+          {/* Timeline Scrubber Bar matching Image 4 */}
+          <div className="flex items-center gap-3 text-xs text-slate-300 font-mono select-none pt-0.5">
+            <span className="w-10 text-right font-medium text-slate-300">
+              {formatTime(currentTime)}
+            </span>
 
-            {isPlaying && (
-              <button
-                type="button"
-                onClick={stopSpeech}
-                className="min-h-[44px] min-w-[44px] p-2.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-colors inline-flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400"
-                title="Stop playback"
-                aria-label="Stop audio playback"
-              >
-                <RotateCcw className="w-5 h-5" />
-              </button>
-            )}
+            <div className="relative flex-1 flex items-center h-4 group cursor-pointer">
+              {/* Dark Track Background */}
+              <div className="w-full h-1 bg-slate-700/90 rounded-full overflow-hidden relative">
+                {/* Played Fill */}
+                <div
+                  className="h-full bg-slate-200 group-hover:bg-blue-400 transition-all rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              {/* Scrubber Knob / Dot */}
+              <div
+                className="absolute w-3 h-3 bg-white rounded-full shadow-md pointer-events-none -translate-x-1/2 group-hover:scale-125 transition-transform"
+                style={{ left: `${progressPercent}%` }}
+              />
+
+              {/* Accessible Range Input Overlaid on Top */}
+              <input
+                type="range"
+                min={0}
+                max={totalDuration}
+                step={0.5}
+                value={currentTime}
+                onChange={handleSeek}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                aria-label="Seek audio summary"
+              />
+            </div>
+
+            <span className="w-12 text-left font-medium text-slate-400">
+              -{formatTime(remainingTime)}
+            </span>
           </div>
         </div>
       </aside>

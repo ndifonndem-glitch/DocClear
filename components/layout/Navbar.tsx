@@ -88,11 +88,6 @@ export const Navbar = () => {
               </button>
             ) : (
               <>
-                {/* Language Indicator */}
-                <span className="hidden sm:inline-flex px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl min-h-[44px] items-center">
-                  English
-                </span>
-
                 {/* Evaluation Link (Visible in top bar on tablet/desktop; on mobile it is in the bottom nav) */}
                 <Link
                   href="/evaluate"

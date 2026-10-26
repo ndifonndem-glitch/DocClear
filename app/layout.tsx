@@ -70,7 +70,7 @@ export default function RootLayout({
               <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0" aria-hidden="true" />
               <span>Processed temporarily • Never saved without permission • WCAG 2.2 AA</span>
             </div>
-            <p className="text-center sm:text-right">IT8530 Advanced Mobile Application Solutions • DocClear</p>
+            <p className="text-center sm:text-right">DocClear</p>
           </div>
         </footer>
       </body>
