@@ -4,32 +4,50 @@
 **Framework:** Next.js 14 (App Router) + TypeScript + Tailwind CSS  
 **Target:** Mobile PWA (Progressive Web App) + Desktop Responsive  
 
+> 📖 **Looking for a student-friendly, step-by-step setup guide?**  
+> Check out the complete handbook: [**`docs/STUDENT_TECHNICAL_SETUP_GUIDE.md`**](docs/STUDENT_TECHNICAL_SETUP_GUIDE.md)
+
 ---
 
 ## Quick Setup & Run
 
 ### Prerequisites
-- **Node.js**: v18.17+ or v20 LTS (Recommended)
-- **Package Manager**: `npm` (included with Node.js) or `pnpm` / `yarn`
+* **Node.js**: v18.17+ or v20 LTS (Recommended)
+* **Git**: Installed and configured
+* **Browser**: Google Chrome or Microsoft Edge
 
-### 1. Installation
+### 1. Clone / Pull from Gitea
+```bash
+# Clone the repository
+git clone http://192.168.10.10:3000/Jesse/Doc_Clear.git
+cd Doc_Clear
+
+# Or pull the latest changes
+git pull origin main
+```
+
+### 2. Install Dependencies
 Navigate into the `docclear` directory and install project dependencies:
 ```bash
-cd docclear
 npm install
 ```
 
-### 2. Environment Configuration
+### 3. Environment Configuration (`.env.local`)
 Copy the example environment file to `.env.local`:
 ```bash
+# Windows PowerShell
+Copy-Item .env.example .env.local
+
+# macOS / Linux
 cp .env.example .env.local
 ```
-Configure your environment variables in `.env.local`:
+Open `.env.local` and add your Google Gemini API key:
 ```env
-NEXT_PUBLIC_APP_NAME="DocClear"
+NEXT_PUBLIC_APP_NAME="Doc Clear"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # Optional: Google Gemini API Key for online AI simplification
+# Get your free key at: https://aistudio.google.com/app/apikey
 GEMINI_API_KEY="your-gemini-api-key"
 GEMINI_MODEL="gemini-flash-latest"
 
@@ -39,11 +57,17 @@ EDUSTACK_MODE="hybrid"
 ```
 *(Note: If no Gemini key is provided, DocClear's internal offline deterministic engine automatically parses, simplifies, and extracts action items with zero network latency).*
 
-### 3. Launch Development Server
+### 4. Launch Development Server
 ```bash
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your web browser.
+
+### 5. Run Automated Tests
+```bash
+node tests/api/analyse.test.js
+node tests/api/agent.test.js
+```
 
 ### 4. Build for Production
 To test production performance and Lighthouse audits:
