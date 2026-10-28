@@ -46,14 +46,43 @@ export async function POST(req: NextRequest) {
     await new Promise((r) => setTimeout(r, 4000));
   } else if (failParam === "timeout") {
     await new Promise((r) => setTimeout(r, 65000));
-  } else if (failParam === "error") {
+  } else if (failParam === "error" || failParam === "down") {
     const errBody: APIErrorResponse = {
       status: "error",
-      code: "UPSTREAM_UNAVAILABLE",
-      message: "Simulation: The orchestration service is temporarily down.",
+      code: "upstream_unavailable",
+      message: "Simulation: The orchestration service is temporarily unreachable (503).",
       retryable: true,
     };
     return NextResponse.json(errBody, { status: 503 });
+  } else if (failParam === "busy") {
+    const errBody: APIErrorResponse = {
+      status: "error",
+      code: "rate_limited",
+      message: "Simulation: The agent is busy. Rate limited (429). Please retry shortly.",
+      retryable: true,
+    };
+    return NextResponse.json(errBody, { status: 429 });
+  } else if (failParam === "bad") {
+    const errBody: APIErrorResponse = {
+      status: "error",
+      code: "bad_image",
+      message: "Simulation: Unreadable or corrupt document image (415). Please take a clearer photo.",
+      retryable: false,
+    };
+    return NextResponse.json(errBody, { status: 415 });
+  } else if (failParam === "large") {
+    const errBody: APIErrorResponse = {
+      status: "error",
+      code: "too_large",
+      message: "Simulation: Payload exceeds maximum size limit (413).",
+      retryable: false,
+    };
+    return NextResponse.json(errBody, { status: 413 });
+  } else if (failParam === "malformed") {
+    return new Response("<html>Proxy error: 502 Bad Gateway (malformed non-JSON)</html>", {
+      status: 502,
+      headers: { "Content-Type": "text/html" },
+    });
   }
 
   try {
@@ -149,11 +178,15 @@ export async function POST(req: NextRequest) {
     const isShortText = originalMetrics.wordCount < 25;
     const reliability = isShortText ? "preliminary (short text)" : "reliable";
 
+    const isLowConfidence = failParam === "low";
+    const finalConfidence = isLowConfidence ? 0.42 : providerUsed === "gemini" ? 0.98 : 0.95;
+    const finalStatus: "done" | "needs_review" = isLowConfidence ? "needs_review" : "done";
+
     const response: SimplificationResponse = {
-      status: "done",
+      status: finalStatus,
       runId,
       label: providerUsed === "gemini" ? "simplified_by_gemini" : "simplified_by_local_engine",
-      confidence: providerUsed === "gemini" ? 0.98 : 0.95,
+      confidence: finalConfidence,
       original_text: cleanedText,
       simplified_text: simplifiedText,
       document_title: documentTitle,

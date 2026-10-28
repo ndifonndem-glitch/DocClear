@@ -93,10 +93,12 @@ export default function ReviewPage() {
     } catch (err) {
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
       if (stepTimerRef.current) clearInterval(stepTimerRef.current);
+      // Treat network errors or request failures as the true offline signal
+      setIsOffline(true);
       setErrorMessage(
         err instanceof Error
-          ? err.message
-          : "Failed to connect to the simplification service. Please check your connection and retry."
+          ? `${err.message} (Network timeout or offline. Local analytical fallback is ready).`
+          : "Network request timed out or failed. Please check your connection or use local fallback."
       );
     } finally {
       setIsLoading(false);

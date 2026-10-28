@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Award, ShieldCheck, ListChecks, Timer, CheckCircle } from "lucide-react";
+import { ArrowLeft, Award, ShieldCheck, ListChecks, Smartphone, Timer, CheckCircle } from "lucide-react";
 import { SUSForm } from "@/components/evaluation/SUSForm";
 import { HeuristicChecklist } from "@/components/evaluation/HeuristicChecklist";
+import { SensorDiagnostics } from "@/components/evaluation/SensorDiagnostics";
 import { Button } from "@/components/ui/Button";
 
 const TASKS = [
@@ -40,7 +41,7 @@ const TASKS = [
 
 export default function EvaluatePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"sus" | "heuristics" | "tasks">("sus");
+  const [activeTab, setActiveTab] = useState<"sus" | "heuristics" | "tasks" | "sensors">("sus");
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
 
   const toggleTask = (id: string) => {
@@ -116,6 +117,20 @@ export default function EvaluatePage() {
           <span className="hidden sm:inline">Task-Based Evaluation</span>
           <span className="sm:hidden">Tasks</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("sensors")}
+          className={`flex-1 py-3 px-2 sm:px-4 text-xs sm:text-sm font-bold border-b-2 flex items-center justify-center gap-1.5 sm:gap-2 min-h-[48px] transition-colors ${
+            activeTab === "sensors"
+              ? "border-blue-600 text-blue-700 bg-blue-50/40"
+              : "border-transparent text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <Smartphone className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+          <span className="hidden sm:inline">Device Sensors (Diagnostics)</span>
+          <span className="sm:hidden">Sensors</span>
+        </button>
       </div>
 
       {/* Tab 1: System Usability Scale */}
@@ -180,6 +195,9 @@ export default function EvaluatePage() {
           </div>
         </div>
       )}
+
+      {/* Tab 4: Mobile Device Sensor Diagnostics */}
+      {activeTab === "sensors" && <SensorDiagnostics />}
     </div>
   );
 }

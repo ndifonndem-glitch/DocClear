@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { SimplificationResponse, ExtractedDeadline } from "@/types/api";
 import { CalendarExportPopover } from "@/components/calendar/CalendarExportPopover";
+import { DocumentAgentDrawer } from "@/components/agent/DocumentAgentDrawer";
 
 export interface ComparisonViewProps {
   data: SimplificationResponse;
@@ -30,57 +31,131 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [currentSentenceIdx, setCurrentSentenceIdx] = useState<number>(-1);
-  const [sentences, setSentences] = useState<string[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isCopied, setIsCopied] = useState(false);
   const [isOriginalModalOpen, setIsOriginalModalOpen] = useState(false);
   const [downloadedEventIndex, setDownloadedEventIndex] = useState<number | null>(null);
   const [mobileCompareTab, setMobileCompareTab] = useState<"simplified" | "original">("simplified");
 
+  const [isSpeechSupported, setIsSpeechSupported] = useState<boolean>(true);
+  const [voiceList, setVoiceList] = useState<SpeechSynthesisVoice[]>([]);
+
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const sentenceIndexRef = useRef<number>(0);
-  const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isChangingSpeedRef = useRef<boolean>(false);
+  const currentCharOffsetRef = useRef<number>(0);
+  const resumeFallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const tickerRef = useRef<NodeJS.Timeout | null>(null);
+  const playbackStartTimeRef = useRef<number>(0);
+  const playbackStartSecRef = useRef<number>(0);
 
-  // Prepare clean sentences for speech synthesis queue
+  // Playback timer ticker to ensure the progress bar and timer move smoothly across all browsers
+  const clearPlaybackTicker = () => {
+    if (tickerRef.current) {
+      clearInterval(tickerRef.current);
+      tickerRef.current = null;
+    }
+  };
+
+  const startPlaybackTicker = (startSec: number, speed: number) => {
+    clearPlaybackTicker();
+    playbackStartSecRef.current = startSec;
+    playbackStartTimeRef.current = performance.now();
+
+    tickerRef.current = setInterval(() => {
+      const elapsedSec = ((performance.now() - playbackStartTimeRef.current) / 1000) * speed;
+      const calculatedTime = Math.min(totalDuration, playbackStartSecRef.current + elapsedSec);
+      setCurrentTime(calculatedTime);
+
+      // Dynamically calculate active sentence based on progress ratio
+      if (fullText.length > 0 && sentenceRanges.length > 0 && totalDuration > 0) {
+        const ratio = calculatedTime / totalDuration;
+        const currentApproxChar = Math.floor(ratio * fullText.length);
+        currentCharOffsetRef.current = currentApproxChar;
+        const foundIdx = sentenceRanges.findIndex(
+          (r) => currentApproxChar >= r.start && currentApproxChar <= r.end
+        );
+        if (foundIdx !== -1) {
+          setCurrentSentenceIdx(foundIdx);
+        }
+      }
+
+      if (calculatedTime >= totalDuration) {
+        clearPlaybackTicker();
+      }
+    }, 100);
+  };
+
+  // Asynchronous voice loading with voiceschanged event listener
   useEffect(() => {
-    const fullText = `${data.document_title || "Document summary"}. ${
-      data.document_subtitle || ""
-    }. ${data.simplified_text}`;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setIsSpeechSupported(false);
+      return;
+    }
 
-    // Split into readable sentences without cutting abbreviations
-    const splitSentences = fullText
+    setIsSpeechSupported(true);
+
+    const updateVoices = () => {
+      try {
+        const list = window.speechSynthesis.getVoices();
+        if (list && list.length > 0) {
+          setVoiceList(list);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    updateVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", updateVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", updateVoices);
+      clearPlaybackTicker();
+      stopSpeech();
+    };
+  }, []);
+
+  // Prepare full reading text and sentence boundaries
+  const fullText = React.useMemo(() => {
+    const parts = [
+      data.document_title || "Document summary",
+      data.document_subtitle || "",
+      data.simplified_text || "",
+    ].filter(Boolean);
+    return parts.join(". ");
+  }, [data]);
+
+  // Split into readable sentences and map character ranges for onboundary tracking
+  const { sentenceList, sentenceRanges } = React.useMemo(() => {
+    if (!fullText) return { sentenceList: [], sentenceRanges: [] };
+
+    const split = fullText
       .split(/(?<=[.!?])\s+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
-    setSentences(splitSentences);
-
-    return () => {
-      stopSpeech();
-    };
-  }, [data]);
-
-  // Word counts per sentence for accurate audio duration and seeking
-  const sentenceWordCounts = React.useMemo(() => {
-    return sentences.map((s) => s.split(/\s+/).filter(Boolean).length);
-  }, [sentences]);
-
-  const totalWords = React.useMemo(() => {
-    return sentenceWordCounts.reduce((a, b) => a + b, 0);
-  }, [sentenceWordCounts]);
-
-  const cumulativeWords = React.useMemo(() => {
-    const acc: number[] = [0];
-    for (let i = 0; i < sentenceWordCounts.length; i++) {
-      acc.push(acc[i] + sentenceWordCounts[i]);
+    const ranges: { start: number; end: number; text: string }[] = [];
+    let searchPos = 0;
+    for (const s of split) {
+      const idx = fullText.indexOf(s, searchPos);
+      if (idx !== -1) {
+        ranges.push({ start: idx, end: idx + s.length, text: s });
+        searchPos = idx + s.length;
+      } else {
+        ranges.push({ start: searchPos, end: searchPos + s.length, text: s });
+        searchPos += s.length;
+      }
     }
-    return acc;
-  }, [sentenceWordCounts]);
 
-  // Total duration in seconds: ~2.6 words/sec at 1.0x
+    return { sentenceList: split, sentenceRanges: ranges };
+  }, [fullText]);
+
+  // Total words count for audio timeline estimation
+  const totalWords = React.useMemo(() => {
+    return fullText.split(/\s+/).filter(Boolean).length;
+  }, [fullText]);
+
+  // Total duration in seconds: ~2.5 words/sec at 1.0x
   const totalDuration = React.useMemo(() => {
-    return Math.max(5, Math.round(totalWords / (2.6 * playbackSpeed)));
+    return Math.max(5, Math.round(totalWords / (2.5 * playbackSpeed)));
   }, [totalWords, playbackSpeed]);
 
   const remainingTime = Math.max(0, totalDuration - currentTime);
@@ -95,103 +170,122 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  // Advance timeline progress smoothly while audio is playing
-  useEffect(() => {
-    if (!isPlaying || isPaused) return;
-
-    const timer = setInterval(() => {
-      setCurrentTime((prev) => {
-        const next = prev + 0.25;
-        return next >= totalDuration ? totalDuration : next;
-      });
-    }, 250);
-
-    return () => clearInterval(timer);
-  }, [isPlaying, isPaused, totalDuration]);
-
-  // Mobile Web Speech Keep-Alive (Prevents Safari/Chrome from cutting off after 15s)
-  const startKeepAlive = () => {
-    if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
-    keepAliveIntervalRef.current = setInterval(() => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-          window.speechSynthesis.pause();
-          window.speechSynthesis.resume();
-        }
-      }
-    }, 10000);
-  };
-
-  const stopKeepAlive = () => {
-    if (keepAliveIntervalRef.current) {
-      clearInterval(keepAliveIntervalRef.current);
-      keepAliveIntervalRef.current = null;
-    }
-  };
-
-  // Find best available English voice on device
+  // Find best available English voice on device (or null for system default)
   const getPreferredVoice = (): SpeechSynthesisVoice | null => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices();
+    const voices = voiceList.length > 0 ? voiceList : window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return null;
 
-    // Prioritize natural / enhanced mobile English voices
     return (
       voices.find((v) => /natural|enhanced|google|samantha|daniel|karen/i.test(v.name) && v.lang.startsWith("en")) ||
-      voices.find((v) => v.lang === "en-US") ||
+      voices.find((v) => v.lang === "en-US" || v.lang === "en-NZ" || v.lang === "en-GB") ||
       voices.find((v) => v.lang.startsWith("en")) ||
-      voices[0]
+      null
     );
   };
 
-  const playSentenceAtIndex = (index: number, speed: number) => {
+  // Continuous speech playback function designed for mobile web
+  const speakFromCharOffset = (charOffset: number, speed: number) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (index >= sentences.length) {
+
+    // Clean previous audio
+    window.speechSynthesis.cancel();
+
+    const clampedOffset = Math.max(0, Math.min(charOffset, fullText.length));
+    currentCharOffsetRef.current = clampedOffset;
+    const textToSpeak = fullText.slice(clampedOffset).trim();
+
+    if (!textToSpeak) {
       stopSpeech();
       return;
     }
 
-    sentenceIndexRef.current = index;
-    setCurrentSentenceIdx(index);
+    // Identify active sentence
+    const startIdx = sentenceRanges.findIndex(
+      (r) => clampedOffset >= r.start && clampedOffset <= r.end
+    );
+    if (startIdx !== -1) {
+      setCurrentSentenceIdx(startIdx);
+    }
 
-    // Sync timeline clock with sentence start
-    const wordsBefore = cumulativeWords[index] || 0;
-    const estSecs = wordsBefore / (2.6 * speed);
-    setCurrentTime(estSecs);
+    // Set timeline to matching fraction
+    const initialRatio = fullText.length > 0 ? clampedOffset / fullText.length : 0;
+    const startSec = initialRatio * totalDuration;
+    setCurrentTime(startSec);
 
-    const utterance = new SpeechSynthesisUtterance(sentences[index]);
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.rate = speed;
     utterance.pitch = 1.0;
     utterance.lang = "en-US";
 
     const voice = getPreferredVoice();
-    if (voice) utterance.voice = voice;
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.onstart = () => {
+      setIsPlaying(true);
+      setIsPaused(false);
+      startPlaybackTicker(startSec, speed);
+    };
+
+    // Real-time boundary listener: tracks sentence and updates clock without interrupting stream
+    utterance.onboundary = (e: SpeechSynthesisEvent) => {
+      const absChar = clampedOffset + (e.charIndex || 0);
+      currentCharOffsetRef.current = absChar;
+
+      // Update current active sentence indicator
+      const foundIdx = sentenceRanges.findIndex(
+        (r) => absChar >= r.start && absChar <= r.end
+      );
+      if (foundIdx !== -1) {
+        setCurrentSentenceIdx(foundIdx);
+      }
+
+      // Smooth calibration when browser provides boundary events
+      if (fullText.length > 0 && totalDuration > 0) {
+        const ratio = absChar / fullText.length;
+        const boundarySec = Math.min(totalDuration, ratio * totalDuration);
+        playbackStartSecRef.current = boundarySec;
+        playbackStartTimeRef.current = performance.now();
+        setCurrentTime(boundarySec);
+      }
+    };
 
     utterance.onend = () => {
-      if (isChangingSpeedRef.current) return;
-      if (sentenceIndexRef.current < sentences.length - 1) {
-        playSentenceAtIndex(sentenceIndexRef.current + 1, speed);
-      } else {
-        stopSpeech();
-      }
+      clearPlaybackTicker();
+      setIsPlaying(false);
+      setIsPaused(false);
+      setCurrentSentenceIdx(-1);
+      currentCharOffsetRef.current = 0;
+      setCurrentTime(totalDuration);
     };
 
     utterance.onerror = (e) => {
-      if (
-        isChangingSpeedRef.current ||
-        (e as any).error === "canceled" ||
-        (e as any).error === "interrupted"
-      ) {
-        return;
-      }
+      clearPlaybackTicker();
+      const err = (e as any).error;
+      if (err === "canceled" || err === "interrupted") return;
       console.warn("Speech synthesis notice:", e);
-      stopSpeech();
+      setIsPlaying(false);
+      setIsPaused(false);
     };
 
     activeUtteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+
+    // 50ms timeout ensures speech context is unlocked on mobile Safari/Chrome
+    setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(utterance);
+        setIsPlaying(true);
+        setIsPaused(false);
+        startPlaybackTicker(startSec, speed);
+      } catch (err) {
+        console.warn("speechSynthesis speak error:", err);
+      }
+    }, 50);
   };
 
+  // Play / Pause / Resume Toggle
   const handlePlayToggle = () => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       alert("Text-to-speech is not supported by your mobile browser.");
@@ -202,35 +296,50 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
       // Pause
       window.speechSynthesis.pause();
       setIsPaused(true);
-      stopKeepAlive();
+      clearPlaybackTicker();
     } else if (isPlaying && isPaused) {
       // Resume
-      window.speechSynthesis.resume();
-      setIsPaused(false);
-      startKeepAlive();
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+        setIsPaused(false);
+        startPlaybackTicker(currentTime, playbackSpeed);
+
+        // Mobile Chrome fallback: if paused state doesn't resume, re-speak from saved offset
+        if (resumeFallbackTimerRef.current) clearTimeout(resumeFallbackTimerRef.current);
+        resumeFallbackTimerRef.current = setTimeout(() => {
+          if (window.speechSynthesis.paused || !window.speechSynthesis.speaking) {
+            speakFromCharOffset(currentCharOffsetRef.current, playbackSpeed);
+          }
+        }, 150);
+      } else {
+        speakFromCharOffset(currentCharOffsetRef.current, playbackSpeed);
+      }
     } else {
-      // Start from current sentence position
-      window.speechSynthesis.cancel();
-      setIsPlaying(true);
-      setIsPaused(false);
-      startKeepAlive();
-      playSentenceAtIndex(sentenceIndexRef.current || 0, playbackSpeed);
+      // Start playback (from saved offset or from start)
+      const offset =
+        currentTime > 0 && currentTime < totalDuration ? currentCharOffsetRef.current : 0;
+      speakFromCharOffset(offset, playbackSpeed);
     }
   };
 
+  // Stop playback cleanly
   const stopSpeech = () => {
+    clearPlaybackTicker();
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
+    }
+    if (resumeFallbackTimerRef.current) {
+      clearTimeout(resumeFallbackTimerRef.current);
+      resumeFallbackTimerRef.current = null;
     }
     setIsPlaying(false);
     setIsPaused(false);
     setCurrentSentenceIdx(-1);
-    sentenceIndexRef.current = 0;
+    currentCharOffsetRef.current = 0;
     setCurrentTime(0);
-    stopKeepAlive();
   };
 
-  // Cycle speed without restarting from beginning: 1x -> 1.25x -> 1.5x -> 2x
+  // Cycle speed: 1x -> 1.25x -> 1.5x -> 2x without restarting from beginning
   const cycleSpeed = () => {
     const speeds = [1, 1.25, 1.5, 2];
     const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
@@ -238,15 +347,8 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     setPlaybackSpeed(nextSpeed);
 
     if (isPlaying && !isPaused) {
-      const resumeIndex = sentenceIndexRef.current;
-      isChangingSpeedRef.current = true;
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-      setTimeout(() => {
-        isChangingSpeedRef.current = false;
-        playSentenceAtIndex(resumeIndex, nextSpeed);
-      }, 60);
+      startPlaybackTicker(currentTime, nextSpeed);
+      speakFromCharOffset(currentCharOffsetRef.current, nextSpeed);
     }
   };
 
@@ -255,30 +357,22 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     const targetSeconds = parseFloat(e.target.value);
     setCurrentTime(targetSeconds);
 
-    if (totalDuration <= 0 || sentences.length === 0) return;
+    if (totalDuration <= 0 || !fullText) return;
 
-    // Find sentence corresponding to targetSeconds
-    const targetWords = (targetSeconds / totalDuration) * totalWords;
-    let targetSentence = 0;
-    for (let i = 0; i < cumulativeWords.length - 1; i++) {
-      if (targetWords >= cumulativeWords[i] && targetWords < cumulativeWords[i + 1]) {
-        targetSentence = i;
-        break;
-      }
+    const ratio = targetSeconds / totalDuration;
+    const targetChar = Math.floor(ratio * fullText.length);
+    currentCharOffsetRef.current = targetChar;
+
+    const foundIdx = sentenceRanges.findIndex(
+      (r) => targetChar >= r.start && targetChar <= r.end
+    );
+    if (foundIdx !== -1) {
+      setCurrentSentenceIdx(foundIdx);
     }
 
-    sentenceIndexRef.current = targetSentence;
-    setCurrentSentenceIdx(targetSentence);
-
     if (isPlaying && !isPaused) {
-      isChangingSpeedRef.current = true;
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-      setTimeout(() => {
-        isChangingSpeedRef.current = false;
-        playSentenceAtIndex(targetSentence, playbackSpeed);
-      }, 60);
+      startPlaybackTicker(targetSeconds, playbackSpeed);
+      speakFromCharOffset(targetChar, playbackSpeed);
     }
   };
 
@@ -911,8 +1005,21 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               <button
                 type="button"
                 onClick={handlePlayToggle}
-                className="w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-400 min-h-[44px] min-w-[44px]"
-                aria-label={isPlaying ? (isPaused ? "Resume audio" : "Pause audio") : "Play audio summary"}
+                disabled={!isSpeechSupported}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-400 min-h-[44px] min-w-[44px] ${
+                  isSpeechSupported
+                    ? "bg-white text-slate-900 hover:scale-105 active:scale-95"
+                    : "bg-slate-700 text-slate-400 cursor-not-allowed"
+                }`}
+                aria-label={
+                  !isSpeechSupported
+                    ? "Speech synthesis not available"
+                    : isPlaying
+                    ? isPaused
+                      ? "Resume audio"
+                      : "Pause audio"
+                    : "Play audio summary"
+                }
               >
                 {isPlaying && !isPaused ? (
                   <Pause className="w-5 h-5 fill-slate-900 stroke-none" />
@@ -922,11 +1029,19 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               </button>
               <div className="min-w-0">
                 <span className="font-bold text-xs sm:text-sm text-white block truncate">
-                  {isPlaying ? (isPaused ? "Paused" : "Reading aloud...") : "Listen to plain-language summary"}
+                  {!isSpeechSupported
+                    ? "Voice synthesis unavailable on this device"
+                    : isPlaying
+                    ? isPaused
+                      ? "Paused"
+                      : "Reading aloud..."
+                    : "Listen to plain-language summary"}
                 </span>
                 <span className="text-[11px] text-slate-300 block truncate">
-                  {isPlaying && currentSentenceIdx >= 0
-                    ? `Sentence ${currentSentenceIdx + 1} of ${sentences.length}`
+                  {!isSpeechSupported
+                    ? "Web Speech API is not supported in this browser"
+                    : isPlaying && currentSentenceIdx >= 0
+                    ? `Sentence ${currentSentenceIdx + 1} of ${sentenceList.length}`
                     : "Natural text-to-speech voice reader"}
                 </span>
               </div>
@@ -997,6 +1112,12 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
           </div>
         </div>
       </aside>
+
+      {/* Interactive AI Document Agent Drawer with Real Observable Tool Calling */}
+      <DocumentAgentDrawer
+        documentText={data.original_text || data.simplified_text}
+        documentTitle={data.document_title}
+      />
     </div>
   );
 };

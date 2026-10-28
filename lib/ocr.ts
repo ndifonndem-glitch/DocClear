@@ -178,6 +178,27 @@ export async function extractTextFromMultipleImages(
       });
     }
 
+    // Check if any meaningful text was extracted across any of the pages
+    const combinedActualText = pageResults.map((r) => r.text.trim()).join(" ");
+    const lettersCount = combinedActualText.replace(/[^a-zA-Z0-9]/g, "").length;
+
+    // If images contain no readable document text (e.g. photos of people, scenery, objects)
+    if (lettersCount < 5) {
+      onProgress?.(
+        {
+          status: "completed",
+          progress: 1.0,
+          message: "Scan complete. No readable document text detected.",
+        },
+        totalPages - 1,
+        totalPages
+      );
+      return {
+        text: "",
+        confidence: 0,
+      };
+    }
+
     // Merge multi-page text with clear page breaks
     const mergedSections = pageResults.map((res, idx) => {
       return `--- [PAGE ${idx + 1}] ---\n${res.text}`;

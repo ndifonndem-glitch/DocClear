@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ScannedPage } from "@/types/document";
-import { PermissionDialog, PermissionStatus } from "@/components/ui/PermissionDialog";
+import { PermissionDialog, PermissionStatus, PermissionType } from "@/components/ui/PermissionDialog";
 
 export type SupportedFileType = "image" | "pdf" | "docx" | "text";
 
@@ -58,11 +58,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const [hasCameraAccess, setHasCameraAccess] = useState<boolean | null>(null);
   const [inspectingPage, setInspectingPage] = useState<ScannedPage | null>(null);
   const [shutterFlash, setShutterFlash] = useState(false);
+  const [lightWarning, setLightWarning] = useState<string | null>(null);
 
-  // Permission Prompt State
+  // Granular, separate permissions (Camera & File Storage requested one-by-one)
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("undecided");
-  const [pendingAction, setPendingAction] = useState<"camera" | "upload" | null>(null);
+  const [activePermissionType, setActivePermissionType] = useState<PermissionType>("camera");
+  const [cameraPermission, setCameraPermission] = useState<PermissionStatus>("undecided");
+  const [storagePermission, setStoragePermission] = useState<PermissionStatus>("undecided");
 
   // Local pages inside the camera viewfinder session
   const [localPages, setLocalPages] = useState<ScannedPage[]>([]);
@@ -79,62 +81,115 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }
   }, [scannedPages]);
 
-  // Read saved permission status & listen for global prompt events
+  // Read saved granular permissions on mount & listen to global updates
   useEffect(() => {
-    const saved = localStorage.getItem("docclear_device_permission") as PermissionStatus | null;
-    if (saved) {
-      setPermissionStatus(saved);
+    if (typeof window !== "undefined") {
+      const savedCam = localStorage.getItem("docclear_perm_camera") as PermissionStatus | null;
+      if (savedCam) setCameraPermission(savedCam);
+
+      const savedStore = localStorage.getItem("docclear_perm_storage") as PermissionStatus | null;
+      if (savedStore) setStoragePermission(savedStore);
+
+      const handlePermUpdate = () => {
+        const c = localStorage.getItem("docclear_perm_camera") as PermissionStatus | null;
+        if (c) setCameraPermission(c);
+        const s = localStorage.getItem("docclear_perm_storage") as PermissionStatus | null;
+        if (s) setStoragePermission(s);
+      };
+
+      window.addEventListener("docclear-permission-updated", handlePermUpdate);
+      return () => {
+        window.removeEventListener("docclear-permission-updated", handlePermUpdate);
+      };
     }
-
-    const handleGlobalPrompt = () => {
-      setIsPermissionDialogOpen(true);
-    };
-
-    window.addEventListener("docclear-prompt-permission", handleGlobalPrompt);
-    return () => {
-      window.removeEventListener("docclear-prompt-permission", handleGlobalPrompt);
-    };
   }, []);
 
+  // Camera trigger:
+  // When allowed one time, the permission box is not shown repeatedly; camera opens directly.
+  // If user previously denied or hasn't decided, clicking "Use camera" displays the permission box.
   const handleCameraButtonClick = () => {
-    const saved = localStorage.getItem("docclear_device_permission");
-    if (saved !== "granted") {
-      setPendingAction("camera");
-      setIsPermissionDialogOpen(true);
+    const saved = typeof window !== "undefined" ? localStorage.getItem("docclear_perm_camera") : null;
+    if (saved === "granted") {
+      startCamera();
       return;
     }
-    startCamera();
+    setActivePermissionType("camera");
+    setIsPermissionDialogOpen(true);
   };
 
+  // File upload trigger:
+  // If previously denied, show the permission box to allow re-enabling.
+  // Otherwise open native device file picker directly.
   const handleUploadButtonClick = () => {
-    const saved = localStorage.getItem("docclear_device_permission");
-    if (saved !== "granted") {
-      setPendingAction("upload");
+    const saved = typeof window !== "undefined" ? localStorage.getItem("docclear_perm_storage") : null;
+    if (saved === "denied") {
+      setActivePermissionType("storage");
       setIsPermissionDialogOpen(true);
       return;
     }
     fileInputRef.current?.click();
   };
 
-  const handlePermissionDecision = (status: PermissionStatus) => {
-    setPermissionStatus(status);
+  // Callback when user grants or denies a specific permission
+  const handlePermissionDecision = (status: PermissionStatus, type: PermissionType) => {
     setIsPermissionDialogOpen(false);
-    if (status === "granted") {
-      if (pendingAction === "camera") {
+    if (type === "camera") {
+      setCameraPermission(status);
+      if (status === "granted") {
         startCamera();
-      } else if (pendingAction === "upload") {
+      }
+    } else if (type === "storage") {
+      setStoragePermission(status);
+      if (status === "granted") {
         fileInputRef.current?.click();
       }
     }
-    setPendingAction(null);
   };
 
-  // Stop camera stream on unmount
+  // Stop camera stream on unmount or when app goes to background
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopCamera();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       stopCamera();
     };
   }, []);
+
+  // Ensure video element receives stream as soon as it mounts in the DOM
+  useEffect(() => {
+    if (isCameraModalOpen && hasCameraAccess && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      video.srcObject = streamRef.current;
+      video.onloadedmetadata = () => {
+        video.play().catch((e) => console.warn("Video play error:", e));
+      };
+      video.play().catch((e) => console.warn("Video play error:", e));
+    }
+  }, [isCameraModalOpen, hasCameraAccess]);
+
+  // Spacebar to capture photo on desktop webcam, Escape to close
+  useEffect(() => {
+    if (!isCameraModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.code === "Space" || e.code === "Enter") &&
+        !e.repeat &&
+        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        handleShutterCapture();
+      } else if (e.key === "Escape") {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isCameraModalOpen, localPages]);
 
   const startCamera = async () => {
     setLocalPages(scannedPages || []);
@@ -146,25 +201,38 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         throw new Error("Camera API not supported in this browser.");
       }
 
-      // Try environment/rear camera first, fallback to any video input
+      stopCamera();
+
+      // Multi-tier webcam constraints: compatible with mobile rear cams, USB webcams & laptop webcams
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch (err1) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          });
+        } catch (err2) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
       }
 
       streamRef.current = stream;
       setHasCameraAccess(true);
 
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch((e) => console.warn("Video play error:", e));
-        }
-      }, 100);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch((e) => console.warn("Video play error:", e));
+        };
+        videoRef.current.play().catch((e) => console.warn("Video play error:", e));
+      }
     } catch (err) {
       console.warn("Camera access denied or unavailable:", err);
       setHasCameraAccess(false);
@@ -173,8 +241,18 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+          track.enabled = false;
+        } catch {
+          // ignore
+        }
+      });
       streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   };
 
@@ -288,15 +366,41 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       return;
     }
 
-    if (videoRef.current && hasCameraAccess && videoRef.current.videoWidth > 0) {
+    if (videoRef.current && streamRef.current) {
       const video = videoRef.current;
+      const w = video.videoWidth || video.clientWidth || 1280;
+      const h = video.videoHeight || video.clientHeight || 720;
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+
+        // Ambient-Light assessment from captured image (Supervisor Checklist Item 3)
+        try {
+          const sampleW = Math.min(canvas.width, 160);
+          const sampleH = Math.min(canvas.height, 160);
+          const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+          const px = imgData.data;
+          let sumLuma = 0;
+          for (let i = 0; i < px.length; i += 4) {
+            // Perceptual luminance: 0.299R + 0.587G + 0.114B
+            sumLuma += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+          }
+          const avgLuma = Math.round(sumLuma / (px.length / 4));
+          if (avgLuma < 55) {
+            setLightWarning(
+              `Low lighting detected (${avgLuma}/255). Consider turning on the flashlight or moving to better light for higher OCR accuracy.`
+            );
+            setTimeout(() => setLightWarning(null), 5000);
+          } else {
+            setLightWarning(null);
+          }
+        } catch {
+          // ignore
+        }
 
         // Flash visual feedback
         setShutterFlash(true);
@@ -316,7 +420,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       }
     }
 
-    // Fallback file picker
+    // Fallback file picker if video stream is not active
     cameraInputRef.current?.click();
   };
 
@@ -435,19 +539,41 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         </button>
       </div>
 
-      {/* Permission Denied Recovery Notice */}
-      {permissionStatus === "denied" && (
+      {/* Granular Permission Denied Recovery Notices */}
+      {cameraPermission === "denied" && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900 animate-in fade-in">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <span>Photo & device file access is currently denied.</span>
+            <span>Camera access is currently denied. You can still upload files directly.</span>
           </div>
           <button
             type="button"
-            onClick={() => setIsPermissionDialogOpen(true)}
+            onClick={() => {
+              setActivePermissionType("camera");
+              setIsPermissionDialogOpen(true);
+            }}
             className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[36px] px-2"
           >
-            Grant Access
+            Allow Camera
+          </button>
+        </div>
+      )}
+
+      {storagePermission === "denied" && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span>Device file access is currently denied.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setActivePermissionType("storage");
+              setIsPermissionDialogOpen(true);
+            }}
+            className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[36px] px-2"
+          >
+            Allow Files
           </button>
         </div>
       )}
@@ -617,14 +743,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
       {/* FULLSCREEN MULTI-PAGE SCANNER MODAL */}
       {isCameraModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#0f141c] flex flex-col justify-between text-white p-3 sm:p-5 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#0f141c] flex flex-col justify-between text-white p-2 sm:p-4 overflow-y-auto min-h-[100dvh] animate-in fade-in duration-150">
           {/* Shutter White Flash Feedback */}
           {shutterFlash && (
             <div className="absolute inset-0 z-50 bg-white/60 pointer-events-none transition-opacity duration-150" />
           )}
 
           {/* Modal Header */}
-          <div className="flex items-center justify-between relative h-12">
+          <div className="shrink-0 flex items-center justify-between relative h-12 w-full max-w-lg mx-auto">
             <button
               type="button"
               onClick={handleCloseModal}
@@ -658,8 +784,24 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           </div>
 
           {/* Viewfinder Center */}
-          <div className="flex-1 flex flex-col items-center justify-center my-2 relative">
-            <div className="relative w-full max-w-xs sm:max-w-sm aspect-[3/4] rounded-3xl border-2 border-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.35)] bg-slate-900/60 p-2 flex flex-col items-center justify-center overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center my-1 relative w-full max-w-lg mx-auto">
+            {/* Ambient Darkness / Low-Light Warning Pill */}
+            {lightWarning && (
+              <div
+                role="alert"
+                className="absolute top-2 z-40 max-w-xs sm:max-w-sm px-3.5 py-1.5 bg-amber-950/95 border border-amber-500 text-amber-200 text-xs rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in"
+              >
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" aria-hidden="true" />
+                <span className="font-medium">{lightWarning}</span>
+              </div>
+            )}
+
+            {/* Viewfinder Frame (Clicking screen also snaps photo) */}
+            <div
+              onClick={hasCameraAccess ? handleShutterCapture : undefined}
+              className="relative w-full max-w-[340px] sm:max-w-md h-[40vh] sm:h-[48vh] max-h-[380px] rounded-3xl border-2 border-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.35)] bg-slate-900/90 p-2 flex flex-col items-center justify-center overflow-hidden cursor-pointer group shrink"
+              title={hasCameraAccess ? "Click anywhere on screen to snap photo" : undefined}
+            >
               {hasCameraAccess ? (
                 <div className="relative w-full h-full rounded-2xl overflow-hidden bg-black flex items-center justify-center">
                   <video
@@ -667,10 +809,15 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain sm:object-cover bg-black"
                   />
                   {/* Subtle scanning laser line */}
-                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse" />
+                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse pointer-events-none" />
+                  <div className="absolute bottom-2 left-2 right-2 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="bg-black/70 text-cyan-300 text-[11px] font-semibold px-2.5 py-1 rounded-full">
+                      Click screen or tap button to snap
+                    </span>
+                  </div>
                 </div>
               ) : hasCameraAccess === false ? (
                 <div className="w-full h-full bg-slate-800/90 rounded-2xl p-5 flex flex-col items-center justify-center text-center space-y-3">
@@ -706,28 +853,28 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </div>
 
             {/* Instruction pill */}
-            <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-950/90 border border-teal-500/50 text-teal-300 text-xs font-bold tracking-wide shadow-md">
+            <div className="mt-2 shrink-0 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-teal-950/90 border border-teal-500/50 text-teal-300 text-xs font-bold tracking-wide shadow-md">
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping" />
               <span>
                 {localPages.length >= MAX_PAGES_LIMIT
                   ? "Maximum 5 pages reached. Tap Done to proceed."
-                  : `Hold steady. Snap Page ${localPages.length + 1} of ${MAX_PAGES_LIMIT}.`}
+                  : `Hold steady. Snap Page ${localPages.length + 1} of ${MAX_PAGES_LIMIT} (or press Space).`}
               </span>
             </div>
           </div>
 
           {/* IN-CAMERA MULTI-PAGE THUMBNAIL TRAY */}
           {localPages.length > 0 && (
-            <div className="max-w-md mx-auto w-full mb-3 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-xl">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 mb-2 px-1">
+            <div className="shrink-0 max-w-md mx-auto w-full my-1 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2 shadow-xl">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 mb-1.5 px-1">
                 <span>Captured Pages ({localPages.length}/{MAX_PAGES_LIMIT})</span>
-                <span className="text-cyan-400">Tap thumbnail to inspect & rotate</span>
+                <span className="text-cyan-400">Tap to inspect & rotate</span>
               </div>
               <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
                 {localPages.map((page, idx) => (
                   <div
                     key={page.id}
-                    className="relative flex-shrink-0 w-16 h-20 bg-black rounded-lg overflow-hidden border border-slate-600 shadow-sm group cursor-pointer"
+                    className="relative flex-shrink-0 w-14 h-18 bg-black rounded-lg overflow-hidden border border-slate-600 shadow-sm group cursor-pointer"
                     onClick={() => setInspectingPage(page)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -755,8 +902,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </div>
           )}
 
-          {/* Bottom Shutter & Controls */}
-          <div className="flex items-center justify-around pb-4 pt-1 max-w-sm mx-auto w-full">
+          {/* Bottom Shutter & Controls — Sticky and Guaranteed Visible */}
+          <div className="shrink-0 sticky bottom-0 z-30 flex items-center justify-around py-3 px-4 max-w-md mx-auto w-full bg-[#0f141c]/95 backdrop-blur-sm border-t border-slate-800/80 mt-auto">
             {/* Left: Gallery File Picker */}
             <button
               type="button"
@@ -764,43 +911,41 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                 handleCloseModal();
                 fileInputRef.current?.click();
               }}
-              className="min-h-[44px] min-w-[48px] p-2 flex flex-col items-center justify-center gap-1 text-slate-300 hover:text-white text-xs font-medium focus:outline-none"
+              className="min-h-[44px] min-w-[56px] p-2 flex flex-col items-center justify-center gap-1 text-slate-300 hover:text-white text-xs font-medium focus:outline-none"
               aria-label="Open document file gallery"
             >
-              <ImageIcon className="w-6 h-6 stroke-[1.8]" />
+              <ImageIcon className="w-5 h-5 stroke-[1.8]" />
               <span>Gallery</span>
             </button>
 
-            {/* Center: Large Shutter Button */}
+            {/* Center: Large High-Visibility Shutter Capture Button */}
             <button
               type="button"
               disabled={localPages.length >= MAX_PAGES_LIMIT}
               onClick={handleShutterCapture}
-              className={`w-20 h-20 rounded-full border-4 p-1 flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-4 min-h-[44px] min-w-[44px] ${
+              className={`w-20 h-20 rounded-full border-4 p-1 flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-4 shadow-2xl min-h-[50px] min-w-[50px] ${
                 localPages.length >= MAX_PAGES_LIMIT
-                  ? "border-slate-700 opacity-50 cursor-not-allowed"
-                  : "border-slate-700 hover:border-slate-500 focus:ring-cyan-400"
+                  ? "border-slate-700 opacity-50 cursor-not-allowed bg-slate-800"
+                  : "border-white hover:border-cyan-400 bg-slate-800 focus:ring-cyan-400 shadow-[0_0_20px_rgba(37,99,235,0.5)]"
               }`}
               aria-label={
                 localPages.length >= MAX_PAGES_LIMIT
                   ? "Page limit reached"
                   : `Capture Page ${localPages.length + 1} of ${MAX_PAGES_LIMIT}`
               }
+              title="Snap photo (or press Spacebar)"
             >
               <div
-                className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg ${
+                className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg transition-colors ${
                   localPages.length >= MAX_PAGES_LIMIT
                     ? "bg-slate-700 text-slate-400 text-[10px] font-bold"
-                    : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/50 text-white"
+                    : "bg-blue-600 hover:bg-blue-500 text-white"
                 }`}
               >
-                {localPages.length >= MAX_PAGES_LIMIT ? (
-                  <span>FULL</span>
-                ) : (
-                  <span className="text-xs font-extrabold tracking-tight">
-                    +{localPages.length + 1}
-                  </span>
-                )}
+                <Camera className="w-6 h-6 stroke-[2.2]" />
+                <span className="text-[10px] font-extrabold uppercase tracking-tight mt-0.5">
+                  {localPages.length >= MAX_PAGES_LIMIT ? "Full" : `Snap ${localPages.length + 1}`}
+                </span>
               </div>
             </button>
 
@@ -808,13 +953,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             <button
               type="button"
               onClick={toggleFlash}
-              className={`min-h-[44px] min-w-[48px] p-2 flex flex-col items-center justify-center gap-1 text-xs font-medium focus:outline-none ${
-                isFlashActive ? "text-amber-400" : "text-slate-300 hover:text-white"
+              className={`min-h-[44px] min-w-[56px] p-2 flex flex-col items-center justify-center gap-1 text-xs font-medium focus:outline-none ${
+                isFlashActive ? "text-amber-400 font-bold" : "text-slate-300 hover:text-white"
               }`}
               aria-label={isFlashActive ? "Turn flash off" : "Turn flash on"}
             >
-              <Flashlight className="w-6 h-6 stroke-[1.8]" />
-              <span>Flash</span>
+              <Flashlight className="w-5 h-5 stroke-[1.8]" />
+              <span>{isFlashActive ? "Flash On" : "Flash"}</span>
             </button>
           </div>
         </div>
@@ -878,9 +1023,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         </div>
       )}
 
-      {/* SYSTEM PERMISSION CONSENT MODAL */}
+      {/* GRANULAR PERMISSION CONSENT MODAL (Contextual: Camera vs Files) */}
       <PermissionDialog
-        forceOpen={isPermissionDialogOpen}
+        type={activePermissionType}
+        isOpen={isPermissionDialogOpen}
         onPermissionChange={handlePermissionDecision}
         onClose={() => setIsPermissionDialogOpen(false)}
       />

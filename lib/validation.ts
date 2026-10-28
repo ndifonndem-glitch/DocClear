@@ -18,8 +18,12 @@ export function validateDocumentText(text: string): { valid: boolean; error?: st
     return { valid: false, error: "Document text is empty. Please check the scan." };
   }
 
-  if (cleaned.length < 10) {
-    return { valid: false, error: "Extracted text is too short to simplify. Minimum 10 characters required." };
+  // Strip multi-page demarcation headers to verify actual content
+  const contentWithoutHeaders = cleaned.replace(/---\s*\[PAGE\s*\d+\]\s*---/gi, "").trim();
+  const alphanumericCount = contentWithoutHeaders.replace(/[^a-zA-Z0-9]/g, "").length;
+
+  if (contentWithoutHeaders.length < 10 || alphanumericCount < 5) {
+    return { valid: false, error: "Extracted text does not contain readable document content. Minimum 10 characters required." };
   }
 
   if (cleaned.length > 50000) {

@@ -145,9 +145,13 @@ export default function Dashboard() {
         confidence = 0.98;
       }
 
-      if (!extractedText || extractedText.trim().length < 5) {
+      // Verify that actual document text was extracted (ignoring multi-page demarcation headers)
+      const contentWithoutHeaders = extractedText.replace(/---\s*\[PAGE\s*\d+\]\s*---/gi, "").trim();
+      const alphanumericChars = contentWithoutHeaders.replace(/[^a-zA-Z0-9]/g, "").length;
+
+      if (!contentWithoutHeaders || alphanumericChars < 10) {
         throw new Error(
-          "No readable text could be recognized in this document. Please ensure it contains clear text."
+          "No readable document text could be recognized. The uploaded images do not appear to contain a printed or digital document. Please take a clear photo of a contract, bill, notice, or official form."
         );
       }
 

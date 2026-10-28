@@ -3,7 +3,22 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FileText, BarChart3, Home, History, Settings, RotateCcw, X, Volume2, Type, Trash2, ShieldCheck, Check, Folder } from "lucide-react";
+import {
+  FileText,
+  BarChart3,
+  Home,
+  History,
+  Settings,
+  RotateCcw,
+  X,
+  Volume2,
+  Type,
+  Trash2,
+  ShieldCheck,
+  Check,
+  Folder,
+  Camera,
+} from "lucide-react";
 
 export const Navbar = () => {
   const pathname = usePathname();
@@ -24,18 +39,30 @@ export const Navbar = () => {
     if (savedRate) {
       setSpeechRate(parseFloat(savedRate));
     }
-    const savedPerm = localStorage.getItem("docclear_device_permission");
+    const savedPerm = localStorage.getItem("docclear_perm_camera") || localStorage.getItem("docclear_device_permission");
     if (savedPerm) {
       setPermissionStatus(savedPerm);
     }
+
+    const handlePermUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ camera?: string; storage?: string }>;
+      if (customEvent.detail?.camera) {
+        setPermissionStatus(customEvent.detail.camera);
+      }
+    };
+
+    window.addEventListener("docclear-permission-updated", handlePermUpdated);
+    return () => window.removeEventListener("docclear-permission-updated", handlePermUpdated);
   }, [isSettingsOpen]);
 
   const handleResetPermission = () => {
-    localStorage.removeItem("docclear_device_permission");
+    localStorage.removeItem("docclear_perm_camera");
+    localStorage.removeItem("docclear_perm_storage");
+    localStorage.removeItem("docclear_perm_onboarding_shown");
     setPermissionStatus("undecided");
     setIsSettingsOpen(false);
     // Dispatch custom event to notify page/capture components to show dialog
-    window.dispatchEvent(new CustomEvent("docclear-prompt-permission"));
+    window.dispatchEvent(new CustomEvent("docclear-prompt-permission", { detail: { type: "all" } }));
   };
 
   const toggleTextScale = () => {
