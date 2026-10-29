@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Volume2,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { SimplificationResponse, ExtractedDeadline } from "@/types/api";
 import { CalendarExportPopover } from "@/components/calendar/CalendarExportPopover";
@@ -552,9 +553,29 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     <div className="space-y-6 sm:space-y-8 pb-36 sm:pb-28 w-full max-w-[1700px] mx-auto px-2 sm:px-0">
       {/* Top Header */}
       <div className="space-y-2 border-b border-slate-200/80 pb-4">
-        <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-          Simplified successfully
-        </div>
+        {data.status === "needs_review" || (data.confidence !== undefined && data.confidence < 0.7) ? (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 shadow-xs" role="alert">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-200 text-amber-950 uppercase tracking-wide">
+                  Status: Needs Review
+                </span>
+                <span className="text-xs font-semibold text-amber-900 font-mono">
+                  Confidence: {Math.round((data.confidence ?? 0.42) * 100)}% (Below 0.70 Threshold)
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                The agent evaluated this document with low confidence. Please verify all key terms, amounts, and dates directly against the original text before relying on this summary.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <span>Simplified successfully</span>
+            <span className="text-emerald-700 font-mono text-[11px]">({Math.round((data.confidence ?? 0.98) * 100)}% confidence)</span>
+          </div>
+        )}
         <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
           {data.document_title || "Document Summary"}
         </h1>
