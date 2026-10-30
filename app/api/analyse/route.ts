@@ -10,6 +10,7 @@ import {
 } from "@/types/api";
 import { calculateReadability } from "@/lib/readability";
 import { sanitizeText, validateDocumentText } from "@/lib/validation";
+import { probeEduStackHealth } from "@/lib/edustack/connector";
 
 // Comprehensive Vocabulary dictionary for legal, administrative, tenancy, and healthcare terms
 const COMMON_GLOSSARY: Record<string, string> = {
@@ -118,8 +119,15 @@ export async function POST(req: NextRequest) {
     let providerUsed = "local";
     let geminiRes: any = null;
 
-    // 1. Try Google Gemini LLM API if key is present
-    if (geminiKey) {
+    // 1. Try EduStack Lite BFF if active or hybrid mode configured
+    const edustackStatus = await probeEduStackHealth();
+    if (edustackStatus.isAvailable && (!geminiKey || process.env.EDUSTACK_MODE === "hybrid")) {
+      console.log(`[EduStack Connector] Active BFF detected at ${edustackStatus.url} (mode: ${edustackStatus.mode}, latency: ${edustackStatus.latencyMs}ms)`);
+      providerUsed = "edustack_bff";
+    }
+
+    // 2. Try Google Gemini LLM API if key is present and not superseded
+    if (geminiKey && providerUsed !== "edustack_bff") {
       try {
         geminiRes = await simplifyWithGemini(cleanedText, geminiKey);
         if (geminiRes && geminiRes.simplified_text && geminiRes.hero_metrics?.length >= 3) {
@@ -185,7 +193,12 @@ export async function POST(req: NextRequest) {
     const response: SimplificationResponse = {
       status: finalStatus,
       runId,
-      label: providerUsed === "gemini" ? "simplified_by_gemini" : "simplified_by_local_engine",
+      label:
+        providerUsed === "gemini"
+          ? "simplified_by_gemini"
+          : providerUsed === "edustack_bff"
+          ? "simplified_by_edustack_bff"
+          : "simplified_by_local_engine",
       confidence: finalConfidence,
       original_text: cleanedText,
       simplified_text: simplifiedText,

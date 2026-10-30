@@ -110,20 +110,27 @@ export const SensorDiagnostics: React.FC = () => {
       const nav = navigator as any;
       if (nav.userAgentData && typeof nav.userAgentData.getHighEntropyValues === "function") {
         nav.userAgentData
-          .getHighEntropyValues(["model", "platformVersion"])
-          .then((hints: { model?: string; platformVersion?: string }) => {
+          .getHighEntropyValues(["model", "platformVersion", "platform"])
+          .then((hints: { model?: string; platformVersion?: string; platform?: string }) => {
             setDeviceInfo((prev) => {
               let trueOs = prev.os;
               let trueDev = prev.device;
 
+              const platformName = hints.platform || nav.userAgentData.platform || "";
+              const isAndroid = /Android/i.test(platformName) || /Android/i.test(prev.os);
+              const isWindows = /Windows/i.test(platformName) || /Windows/i.test(prev.os);
+
               if (hints.platformVersion) {
                 const major = hints.platformVersion.split(".")[0];
-                if (major && !isNaN(Number(major)) && Number(major) > 0) {
+                const majorNum = Number(major);
+                if (isAndroid && !isNaN(majorNum) && majorNum > 0) {
                   trueOs = `Android ${major}`;
+                } else if (isWindows && !isNaN(majorNum)) {
+                  trueOs = majorNum >= 13 ? "Windows 11" : "Windows 10";
                 }
               }
 
-              if (hints.model && hints.model !== "K" && hints.model.trim().length > 0) {
+              if (isAndroid && hints.model && hints.model !== "K" && hints.model.trim().length > 0) {
                 trueDev = hints.model.trim();
               }
 
