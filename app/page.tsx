@@ -135,7 +135,19 @@ export default function Dashboard() {
           body: formData,
         });
 
-        const data = await res.json();
+        const contentType = res.headers.get("content-type") || "";
+        let data: any = {};
+
+        if (contentType.includes("application/json")) {
+          data = await res.json().catch(() => ({}));
+        } else {
+          const textBody = await res.text().catch(() => "");
+          throw new Error(
+            !res.ok
+              ? `Server processing error (HTTP ${res.status}). Please try uploading as an image or check the file.`
+              : "Invalid server response format."
+          );
+        }
 
         if (!res.ok) {
           throw new Error(data.message || `Failed to extract text from ${fileType.toUpperCase()} document.`);
