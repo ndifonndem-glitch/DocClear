@@ -10,84 +10,84 @@ const DEFAULT_ITEMS: HeuristicItem[] = [
     category: "Visibility",
     title: "Visibility of System Status",
     description: "Clear loading spinners, live OCR recognition percentages, and network state indicators are presented.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H2",
     category: "Real World Match",
     title: "Match Between System and Real World",
     description: "Plain language explanations avoid dense jargon; dates and payment amounts use familiar regional conventions.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H3",
     category: "User Control",
     title: "User Control and Freedom",
     description: "Users can inspect, edit, and reset OCR text before simplification (FR-05) and clear current documents at any time (FR-15).",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H4",
     category: "Consistency",
     title: "Consistency and Standards",
     description: "Buttons, typography scales, card layouts, and status colors remain predictable across all application screens.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H5",
     category: "Error Prevention",
     title: "Error Prevention",
     description: "Camera inputs validate image file formats before submission and prevent duplicate simultaneous requests.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H6",
     category: "Recognition",
     title: "Recognition Rather Than Recall",
     description: "Original document text remains accessible side-by-side with the simplified version so the user never has to memorize clauses.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H7",
     category: "Flexibility",
     title: "Flexibility and Efficiency of Use",
     description: "Supports camera capture, file upload, or preloaded realistic samples for rapid testing without physical documents.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H8",
     category: "Aesthetic",
     title: "Aesthetic and Minimalist Design",
     description: "Clean, clutter-free screens with high whitespace, focused typography, and minimal cognitive load per interaction step.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H9",
     category: "Error Recovery",
     title: "Help Users Recognize and Recover from Errors",
     description: "Clear, non-technical error alerts explain what failed and provide immediate recovery hints or retry buttons.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "H10",
     category: "Help",
     title: "Help and Documentation",
     description: "Prominent verification disclaimer (FR-11) and difficult vocabulary glossaries are integrated contextually.",
-    status: "pass",
+    status: "untested",
   },
   {
     id: "WCAG1",
     category: "Accessibility",
     title: "WCAG 2.2 AA Touch Target Size (2.5.5 / 2.5.8)",
-    description: "All interactive buttons and touch targets meet or exceed the 48x48px requirement.",
-    status: "pass",
+    description: "All interactive buttons and touch targets meet or exceed the 44x44px requirement.",
+    status: "untested",
   },
   {
     id: "WCAG2",
     category: "Accessibility",
     title: "WCAG 2.2 AA Contrast & Bypass Blocks (1.4.3 / 2.4.1)",
     description: "Text contrast exceeds 4.5:1; skip-to-content link is provided for keyboard and screen-reader accessibility.",
-    status: "pass",
+    status: "untested",
   },
 ];
 
@@ -118,12 +118,21 @@ export const HeuristicChecklist: React.FC = () => {
             <span>Nielsen Heuristics & WCAG 2.2 Inspection Tool</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Expert heuristic evaluation checklist required by IT8530 Assessment 2 Task 3.
+            Expert heuristic evaluation checklist required by IT8530 Assessment 2 Task 3. Tap any status pill to mark Pass, Fail, or Untested.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl text-emerald-950 font-bold text-sm">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600" aria-hidden="true" />
+        <div
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border ${
+            passCount > 0
+              ? "bg-emerald-50 border-emerald-200 text-emerald-950"
+              : "bg-slate-100 border-slate-200 text-slate-800"
+          }`}
+        >
+          <CheckCircle2
+            className={`w-5 h-5 ${passCount > 0 ? "text-emerald-600" : "text-slate-500"}`}
+            aria-hidden="true"
+          />
           <span>
             {passCount} / {totalCount} Criteria Verified
           </span>
@@ -149,12 +158,12 @@ export const HeuristicChecklist: React.FC = () => {
             <button
               type="button"
               onClick={() => toggleStatus(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all min-h-[38px] ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all min-h-[44px] min-w-[96px] shrink-0 ${
                 item.status === "pass"
                   ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                   : item.status === "fail"
                   ? "bg-rose-100 text-rose-800 border border-rose-300"
-                  : "bg-slate-200 text-slate-700"
+                  : "bg-slate-200 text-slate-700 border border-slate-300"
               }`}
               aria-label={`Toggle evaluation status for ${item.title}`}
             >

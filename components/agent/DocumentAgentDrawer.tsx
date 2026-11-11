@@ -10,7 +10,7 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react";
-import { AgentChatResponse } from "@/app/api/agent/chat/route";
+import { AgentChatResponse, AgentToolTraceItem } from "@/app/api/agent/chat/route";
 
 export interface DocumentAgentDrawerProps {
   documentText: string;
@@ -23,6 +23,7 @@ interface ChatMessage {
   text: string;
   citations?: string[];
   grounded?: boolean;
+  toolTrace?: AgentToolTraceItem[];
   timestamp: string;
 }
 
@@ -104,6 +105,7 @@ export const DocumentAgentDrawer: React.FC<DocumentAgentDrawerProps> = ({
         text: data.answer || "I could not find information on this question in the document.",
         citations: data.citations || [],
         grounded: data.grounded,
+        toolTrace: data.toolTrace || [],
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -181,7 +183,7 @@ export const DocumentAgentDrawer: React.FC<DocumentAgentDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
+                  className="w-11 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
                   aria-label="Close Document Agent drawer"
                 >
                   <X className="w-5 h-5" />
@@ -212,7 +214,7 @@ export const DocumentAgentDrawer: React.FC<DocumentAgentDrawerProps> = ({
                         key={idx}
                         type="button"
                         onClick={() => handleSendMessage(q.query)}
-                        className={`text-[11px] text-left px-3 py-1.5 rounded-xl border transition-all font-semibold shadow-2xs ${
+                        className={`text-[11px] text-left px-3 py-2 min-h-[44px] inline-flex items-center rounded-xl border transition-all font-semibold shadow-2xs ${
                           q.label.includes("Missing")
                             ? "bg-amber-950/40 border-amber-800 text-amber-200 hover:bg-amber-900/50"
                             : "bg-slate-800 border-slate-700 text-blue-300 hover:bg-slate-700 hover:border-blue-500/50"
@@ -255,6 +257,37 @@ export const DocumentAgentDrawer: React.FC<DocumentAgentDrawerProps> = ({
                             <span>{c}</span>
                           </span>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Observable Tool Trace Pills */}
+                    {msg.toolTrace && msg.toolTrace.length > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                          Tool Execution Trace ({msg.toolTrace.length} steps)
+                        </span>
+                        <div className="space-y-1">
+                          {msg.toolTrace.map((t) => (
+                            <div
+                              key={t.step}
+                              className="text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 flex items-start justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <span
+                                  className={`font-mono font-bold mr-1.5 ${
+                                    t.status === "success" ? "text-emerald-400" : "text-amber-400"
+                                  }`}
+                                >
+                                  {t.step}. {t.tool}()
+                                </span>
+                                <span className="text-slate-400 break-words">{t.output}</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                                {t.durationMs}ms
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 

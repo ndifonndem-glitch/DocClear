@@ -44,14 +44,16 @@ export const Alert: React.FC<AlertProps> = ({
   return (
     <div
       role={current.role}
-      className={`border rounded-xl p-4 flex items-start gap-3 text-sm leading-relaxed ${current.container} ${className}`}
+      className={`border rounded-xl p-4 flex flex-col sm:flex-row sm:items-start gap-3 text-sm leading-relaxed ${current.container} ${className}`}
     >
-      {current.icon}
-      <div className="flex-1">
-        {title && <h3 className="font-bold text-sm mb-1">{title}</h3>}
-        <div>{children}</div>
+      <div className="flex items-start gap-3 flex-1 min-w-0">
+        {current.icon}
+        <div className="flex-1 min-w-0">
+          {title && <h3 className="font-bold text-sm mb-1">{title}</h3>}
+          <div className="break-words">{children}</div>
+        </div>
       </div>
-      {action && <div className="ml-auto flex-shrink-0">{action}</div>}
+      {action && <div className="sm:ml-auto flex-shrink-0 pl-8 sm:pl-0">{action}</div>}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { ArrowLeft, FileText, AlertCircle, Loader2, WifiOff, Clock } from "lucid
 import { TextReviewEditor } from "@/components/review/TextReviewEditor";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { AppError } from "@/lib/errors";
 import { requestSimplification } from "@/services/simplification";
 
 export default function ReviewPage() {
@@ -20,6 +21,7 @@ export default function ReviewPage() {
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isErrorRetryable, setIsErrorRetryable] = useState<boolean>(true);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const slowTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,14 +59,21 @@ export default function ReviewPage() {
     setIsLoading(false);
     setIsSlow(false);
     setLoadingStep(1);
+    setIsErrorRetryable(true);
     setErrorMessage("Simplification cancelled by user. You can modify the text and try again.");
   };
 
   const handleSubmit = async (editedText: string) => {
+    setExtractedText(editedText);
     setIsLoading(true);
     setIsSlow(false);
     setLoadingStep(1);
     setErrorMessage(null);
+    setIsErrorRetryable(true);
+
+    if (typeof window !== "undefined" && navigator.onLine) {
+      setIsOffline(false);
+    }
 
     abortControllerRef.current = new AbortController();
 
@@ -79,27 +88,55 @@ export default function ReviewPage() {
     }, 5000);
 
     try {
-      const response = await requestSimplification({
-        text: editedText,
-        readingLevel: "simplified",
-      });
+      const response = await requestSimplification(
+        {
+          text: editedText,
+          readingLevel: "simplified",
+        },
+        { signal: abortControllerRef.current.signal }
+      );
 
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
       if (stepTimerRef.current) clearInterval(stepTimerRef.current);
 
       // Save simplified results for comparison screen
+      sessionStorage.setItem("docclear_extracted_text", editedText);
       sessionStorage.setItem("docclear_simplified_result", JSON.stringify(response));
       router.push("/comparison");
     } catch (err) {
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
       if (stepTimerRef.current) clearInterval(stepTimerRef.current);
-      // Treat network errors or request failures as the true offline signal
-      setIsOffline(true);
-      setErrorMessage(
-        err instanceof Error
-          ? `${err.message} (Network timeout or offline. Local analytical fallback is ready).`
-          : "Network request timed out or failed. Please check your connection or use local fallback."
-      );
+
+      if (err instanceof AppError && err.code === "REQUEST_ABORTED") {
+        setIsErrorRetryable(true);
+        setErrorMessage(err.message);
+        return;
+      }
+
+      const retryable = err instanceof AppError ? err.retryable : true;
+      setIsErrorRetryable(retryable);
+
+      const isConnectivityIssue =
+        (typeof navigator !== "undefined" && !navigator.onLine) ||
+        (err instanceof AppError &&
+          (err.code === "NETWORK_ERROR" || err.code === "upstream_unavailable"));
+      if (isConnectivityIssue) {
+        setIsOffline(true);
+      }
+
+      if (err instanceof AppError) {
+        setErrorMessage(
+          isConnectivityIssue
+            ? `${err.message} (Service unavailable or offline. Local analytical fallback is ready).`
+            : err.message
+        );
+      } else {
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "Network request timed out or failed. Please check your connection or try again."
+        );
+      }
     } finally {
       setIsLoading(false);
       setIsSlow(false);
@@ -214,16 +251,22 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {/* Error state alert if BFF fails with Retry button */}
+      {/* Error state alert if BFF fails; Retry shown only for retryable errors */}
       {errorMessage && (
         <Alert
           type="error"
           title="Simplification Service Error"
           action={
-            <div className="flex items-center gap-2">
-              <Button variant="primary" size="small" onClick={() => handleSubmit(extractedText)} className="min-h-[44px]">
-                Retry
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {isErrorRetryable ? (
+                <Button variant="primary" size="small" onClick={() => handleSubmit(extractedText)} className="min-h-[44px]">
+                  Retry
+                </Button>
+              ) : (
+                <Button variant="primary" size="small" onClick={() => router.push("/")} className="min-h-[44px]">
+                  Upload New File
+                </Button>
+              )}
               <Button variant="outline" size="small" onClick={() => setErrorMessage(null)} className="min-h-[44px]">
                 Dismiss
               </Button>

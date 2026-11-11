@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Check, RotateCcw, Sparkles, BookOpen } from "lucide-react";
+import { Check, RotateCcw, Sparkles, BookOpen, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { calculateReadability } from "@/lib/readability";
 
@@ -86,7 +86,7 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
               type="button"
               onClick={handleReset}
               className="text-xs text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1 min-h-[44px] px-2"
-              aria-label="Reset text back to original scanned text"
+              aria-label="Reset to Original Scan"
             >
               <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Reset to Original Scan</span>
@@ -110,6 +110,18 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
         </span>
       </div>
 
+      {/* Disclosure & Consent Notice Before Cloud Simplification (NZ Privacy Act IPP 3 & IPP 12) */}
+      <div
+        role="note"
+        aria-label="Privacy disclosure before sending document text"
+        className="flex items-start gap-2.5 p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-slate-800 leading-relaxed"
+      >
+        <ShieldCheck className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        <p>
+          <strong>Privacy Notice:</strong> To simplify this text, DocClear sends the edited text above to Google Gemini (when configured), which may process it outside New Zealand. Your original photo stays on your device, and nothing is saved on our server. Only submit sample or non-confidential text on free-tier API keys.
+        </p>
+      </div>
+
       {/* Action Controls */}
       <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
         <Button
@@ -119,7 +131,7 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
           disabled={text.trim().length === 0}
           leftIcon={<Sparkles className="w-5 h-5" />}
           className="w-full sm:flex-1"
-          aria-label="Submit verified text for plain-language simplification"
+          aria-label="Simplify into Plain Language"
         >
           Simplify into Plain Language
         </Button>
@@ -130,7 +142,7 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
           onClick={onCancel}
           disabled={isLoading}
           className="w-full sm:w-auto"
-          aria-label="Cancel and return to document capture"
+          aria-label="Back / Cancel"
         >
           Back / Cancel
         </Button>

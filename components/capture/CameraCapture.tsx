@@ -91,10 +91,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       if (savedStore) setStoragePermission(savedStore);
 
       const handlePermUpdate = () => {
-        const c = localStorage.getItem("docclear_perm_camera") as PermissionStatus | null;
-        if (c) setCameraPermission(c);
-        const s = localStorage.getItem("docclear_perm_storage") as PermissionStatus | null;
-        if (s) setStoragePermission(s);
+        const c = (localStorage.getItem("docclear_perm_camera") as PermissionStatus | null) || "undecided";
+        setCameraPermission(c);
+        const s = (localStorage.getItem("docclear_perm_storage") as PermissionStatus | null) || "undecided";
+        setStoragePermission(s);
       };
 
       window.addEventListener("docclear-permission-updated", handlePermUpdate);
@@ -117,17 +117,47 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     setIsPermissionDialogOpen(true);
   };
 
-  // File upload trigger:
-  // If previously denied, show the permission box to allow re-enabling.
-  // Otherwise open native device file picker directly.
-  const handleUploadButtonClick = () => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem("docclear_perm_storage") : null;
-    if (saved === "denied") {
-      setActivePermissionType("storage");
-      setIsPermissionDialogOpen(true);
-      return;
+  // Opens stored document/image file picker only (never invokes camera capture)
+  const openStoredFilePicker = async () => {
+    if (typeof window !== "undefined" && typeof (window as any).showOpenFilePicker === "function") {
+      try {
+        const [handle] = await (window as any).showOpenFilePicker({
+          multiple: false,
+          types: [
+            {
+              description: "Documents & Saved Images (PDF, Word, TXT, PNG, JPG)",
+              accept: {
+                "application/pdf": [".pdf"],
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+                "application/msword": [".doc"],
+                "text/plain": [".txt", ".md"],
+                "image/*": [".png", ".jpg", ".jpeg", ".webp"],
+              },
+            },
+          ],
+        });
+        const file: File = await handle.getFile();
+        validateAndProcessFile(file);
+        return;
+      } catch (err: any) {
+        if (err?.name === "AbortError") return; // User cancelled file picker
+        // Fall through to standard file input if OS picker throws a non-abort error
+      }
     }
     fileInputRef.current?.click();
+  };
+
+  // File upload trigger:
+  // Prompts storage/files permission dialog on first use or after denial;
+  // opens stored file picker directly once permission has been granted.
+  const handleUploadButtonClick = () => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("docclear_perm_storage") : null;
+    if (saved === "granted") {
+      openStoredFilePicker();
+      return;
+    }
+    setActivePermissionType("storage");
+    setIsPermissionDialogOpen(true);
   };
 
   // Callback when user grants or denies a specific permission
@@ -141,7 +171,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     } else if (type === "storage") {
       setStoragePermission(status);
       if (status === "granted") {
-        fileInputRef.current?.click();
+        openStoredFilePicker();
       }
     }
   };
@@ -346,6 +376,12 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragOver(false);
+    const saved = typeof window !== "undefined" ? localStorage.getItem("docclear_perm_storage") : null;
+    if (saved !== "granted") {
+      setActivePermissionType("storage");
+      setIsPermissionDialogOpen(true);
+      return;
+    }
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       validateAndProcessFile(files[0]);
@@ -420,8 +456,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       }
     }
 
-    // Fallback file picker if video stream is not active
-    cameraInputRef.current?.click();
+    // Fallback camera capture only if camera permission is explicitly granted
+    const savedCam = typeof window !== "undefined" ? localStorage.getItem("docclear_perm_camera") : null;
+    if (savedCam === "granted") {
+      cameraInputRef.current?.click();
+    } else {
+      setActivePermissionType("camera");
+      setIsPermissionDialogOpen(true);
+    }
   };
 
   // Rotate a page 90 degrees clockwise (0 -> 90 -> 180 -> 270 -> 0)
@@ -489,10 +531,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         onChange={handleFileChange}
         aria-label="Capture document with camera"
       />
+      {/* Stored file input omits `image/*` and `capture` so Android opens Documents/Files instead of Camera */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,application/pdf,.pdf,.docx,.doc,.txt,.md"
         id="upload-input"
         className="sr-only"
         onChange={handleFileChange}
@@ -532,7 +574,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               ? "border-2 border-blue-600 bg-blue-50/70 text-blue-700"
               : "border-2 border-dashed border-blue-500 hover:border-blue-700 hover:bg-blue-50/30 text-blue-700"
           }`}
-          aria-label="Upload or drop document file"
+          aria-label="Upload or drop file"
         >
           <Upload className="w-5 h-5 stroke-[2.2]" aria-hidden="true" />
           <span>Upload or drop file</span>
@@ -552,7 +594,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               setActivePermissionType("camera");
               setIsPermissionDialogOpen(true);
             }}
-            className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[36px] px-2"
+            className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[44px] px-2 inline-flex items-center"
           >
             Allow Camera
           </button>
@@ -571,7 +613,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               setActivePermissionType("storage");
               setIsPermissionDialogOpen(true);
             }}
-            className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[36px] px-2"
+            className="font-bold text-blue-700 hover:text-blue-800 underline min-h-[44px] px-2 inline-flex items-center"
           >
             Allow Files
           </button>
@@ -596,7 +638,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               <button
                 type="button"
                 onClick={onClear}
-                className="text-xs font-semibold text-rose-600 hover:text-rose-800 hover:underline min-h-[36px] px-2"
+                className="text-xs font-semibold text-rose-600 hover:text-rose-800 hover:underline min-h-[44px] px-2 inline-flex items-center"
                 aria-label="Clear all scanned pages"
               >
                 Clear All
@@ -644,7 +686,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleRotatePage(page.id, e)}
-                    className="p-1.5 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 rounded-lg text-slate-600 flex items-center justify-center text-xs font-semibold transition-colors min-h-[36px]"
+                    className="p-1.5 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 rounded-lg text-slate-600 flex items-center justify-center text-xs font-semibold transition-colors min-h-[44px]"
                     aria-label={`Rotate Page ${idx + 1} 90 degrees`}
                     title="Rotate 90° clockwise"
                   >
@@ -654,7 +696,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleDeletePage(page.id, e)}
-                    className="p-1.5 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 rounded-lg text-slate-600 flex items-center justify-center text-xs font-semibold transition-colors min-h-[36px]"
+                    className="p-1.5 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 rounded-lg text-slate-600 flex items-center justify-center text-xs font-semibold transition-colors min-h-[44px]"
                     aria-label={`Delete Page ${idx + 1}`}
                     title="Delete page"
                   >
@@ -830,7 +872,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                     type="button"
                     onClick={() => {
                       handleCloseModal();
-                      fileInputRef.current?.click();
+                      handleUploadButtonClick();
                     }}
                     className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all min-h-[44px] inline-flex items-center justify-center"
                   >
@@ -909,7 +951,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               type="button"
               onClick={() => {
                 handleCloseModal();
-                fileInputRef.current?.click();
+                handleUploadButtonClick();
               }}
               className="min-h-[44px] min-w-[56px] p-2 flex flex-col items-center justify-center gap-1 text-slate-300 hover:text-white text-xs font-medium focus:outline-none"
               aria-label="Open document file gallery"

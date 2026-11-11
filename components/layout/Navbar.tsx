@@ -61,8 +61,11 @@ export const Navbar = () => {
     localStorage.removeItem("docclear_perm_onboarding_shown");
     setPermissionStatus("undecided");
     setIsSettingsOpen(false);
-    // Dispatch custom event to notify page/capture components to show dialog
-    window.dispatchEvent(new CustomEvent("docclear-prompt-permission", { detail: { type: "all" } }));
+    window.dispatchEvent(
+      new CustomEvent("docclear-permission-updated", {
+        detail: { camera: "undecided", storage: "undecided" },
+      })
+    );
   };
 
   const toggleTextScale = () => {
@@ -122,7 +125,7 @@ export const Navbar = () => {
                 type="button"
                 onClick={handleStartOver}
                 className="px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] inline-flex items-center justify-center"
-                aria-label="Start over with a new document"
+                aria-label="Start over"
               >
                 Start over
               </button>
@@ -132,7 +135,7 @@ export const Navbar = () => {
                 <Link
                   href="/evaluate"
                   className="hidden sm:inline-flex px-3 py-2 text-xs sm:text-sm font-semibold text-blue-700 hover:text-blue-800 hover:bg-blue-50/50 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] items-center justify-center"
-                  aria-label="HCI Evaluation"
+                  aria-label="Evaluation — HCI Evaluation Tool"
                 >
                   Evaluation
                 </Link>

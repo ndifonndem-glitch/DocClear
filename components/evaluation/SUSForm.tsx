@@ -180,7 +180,7 @@ export const SUSForm: React.FC = () => {
           <button
             type="button"
             onClick={handleCopy}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg shadow-sm transition-colors min-h-[40px]"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg shadow-sm transition-colors min-h-[44px]"
           >
             <Copy className="w-3.5 h-3.5 text-blue-600" />
             <span>Copy Score</span>
@@ -188,7 +188,7 @@ export const SUSForm: React.FC = () => {
           <button
             type="button"
             onClick={handleDownload}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors min-h-[40px]"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors min-h-[44px]"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Download .TXT</span>

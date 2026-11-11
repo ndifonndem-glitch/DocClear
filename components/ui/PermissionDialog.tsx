@@ -173,7 +173,7 @@ export const PermissionDialog: React.FC<PermissionDialogProps> = ({
             type="button"
             disabled={isRequesting}
             onClick={handleDeny}
-            className="w-full py-2.5 text-center text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-2xl transition-colors min-h-[40px] focus:outline-none"
+            className="w-full py-2.5 text-center text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-2xl transition-colors min-h-[44px] focus:outline-none"
           >
             Don&apos;t Allow
           </button>

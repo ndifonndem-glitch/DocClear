@@ -2,7 +2,8 @@ import { SimplificationRequest, SimplificationResponse, APIErrorResponse } from 
 import { AppError } from "@/lib/errors";
 
 export async function requestSimplification(
-  payload: SimplificationRequest
+  payload: SimplificationRequest,
+  options?: { signal?: AbortSignal }
 ): Promise<SimplificationResponse> {
   try {
     const query = typeof window !== "undefined" ? window.location.search : "";
@@ -12,6 +13,7 @@ export async function requestSimplification(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal: options?.signal,
     });
 
     const contentType = res.headers.get("content-type") || "";
@@ -45,6 +47,17 @@ export async function requestSimplification(
   } catch (error: unknown) {
     if (error instanceof AppError) {
       throw error;
+    }
+    if (
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error && error.name === "AbortError") ||
+      options?.signal?.aborted
+    ) {
+      throw new AppError(
+        "REQUEST_ABORTED",
+        "Simplification cancelled by user. You can modify the text and try again.",
+        true
+      );
     }
     throw new AppError(
       "NETWORK_ERROR",

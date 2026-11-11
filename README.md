@@ -1,11 +1,13 @@
-# DocClear - Cognitive Mobile Document Simplifier (Frontend & BFF)
+# DocClear - Cognitive Mobile Document Simplifier (PWA & BFF)
 
 **Course:** IT8530 Advanced Mobile Application Solutions  
 **Framework:** Next.js 14 (App Router) + TypeScript + Tailwind CSS  
-**Target:** Mobile PWA (Progressive Web App) + Desktop Responsive  
+**Repository:** [https://github.com/ndifonndem-glitch/DocClear](https://github.com/ndifonndem-glitch/DocClear) (branch `main`)  
+**Target:** Mobile Progressive Web App (PWA) + Responsive Desktop
 
-> 📖 **Looking for a student-friendly, step-by-step setup guide?**  
-> Check out the complete handbook: [**`docs/STUDENT_TECHNICAL_SETUP_GUIDE.md`**](docs/STUDENT_TECHNICAL_SETUP_GUIDE.md)
+> **Setup & Mobile Testing Guides:**  
+> - [**`docs/STUDENT_TECHNICAL_SETUP_GUIDE.md`**](docs/STUDENT_TECHNICAL_SETUP_GUIDE.md)  
+> - [**`SIMPLE_MOBILE_SETUP_GUIDE.md`**](SIMPLE_MOBILE_SETUP_GUIDE.md)
 
 ---
 
@@ -14,26 +16,22 @@
 ### Prerequisites
 * **Node.js**: v18.17+ or v20 LTS (Recommended)
 * **Git**: Installed and configured
-* **Browser**: Google Chrome or Microsoft Edge
+* **Browser**: Google Chrome (Android / Desktop) or Apple Safari (iOS)
 
-### 1. Clone / Pull from Gitea
+### 1. Clone from GitHub
 ```bash
-# Clone the repository
-git clone http://192.168.10.10:3000/Jesse/Doc_Clear.git
-cd Doc_Clear
-
-# Or pull the latest changes
-git pull origin main
+git clone https://github.com/ndifonndem-glitch/DocClear.git
+cd DocClear
 ```
 
 ### 2. Install Dependencies
-Navigate into the `docclear` directory and install project dependencies:
+From the repository root:
 ```bash
 npm install
 ```
 
 ### 3. Environment Configuration (`.env.local`)
-Copy the example environment file to `.env.local`:
+Copy `.env.example` to `.env.local` (never commit `.env.local`):
 ```bash
 # Windows PowerShell
 Copy-Item .env.example .env.local
@@ -41,39 +39,28 @@ Copy-Item .env.example .env.local
 # macOS / Linux
 cp .env.example .env.local
 ```
-Open `.env.local` and add your Google Gemini API key:
+Optional Google Gemini configuration inside `.env.local`:
 ```env
 NEXT_PUBLIC_APP_NAME="Doc Clear"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# Optional: Google Gemini API Key for online AI simplification
-# Get your free key at: https://aistudio.google.com/app/apikey
+# Optional: Free-tier or paid Google Gemini API Key (see https://aistudio.google.com/app/apikey)
 GEMINI_API_KEY="your-gemini-api-key"
 GEMINI_MODEL="gemini-flash-latest"
-
-# Fallback Orchestration Settings
-EDUSTACK_BFF_URL="http://localhost:8080"
-EDUSTACK_MODE="hybrid"
 ```
-*(Note: If no Gemini key is provided, DocClear's internal offline deterministic engine automatically parses, simplifies, and extracts action items with zero network latency).*
+*(Without a `GEMINI_API_KEY`—or when Gemini is unavailable—DocClear's Next.js `/api/analyse` BFF automatically falls back to its built-in deterministic analytical engine so core simplification, readability metrics, deadlines, and vocabulary extraction still work.)*
 
 ### 4. Launch Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your web browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. For physical smartphone camera testing over HTTPS, expose port `3000` through an HTTPS tunnel (for example, `ngrok http 3000`).
 
-### 5. Run Automated Tests
+### 5. Run Automated Tests & Production Build
 ```bash
 node tests/api/analyse.test.js
 node tests/api/agent.test.js
-```
-
-### 4. Build for Production
-To test production performance and Lighthouse audits:
-```bash
 npm run build
-npm run start
 ```
 
 ---
@@ -82,14 +69,7 @@ npm run start
 
 | Route | Feature | Key Capabilities |
 | :--- | :--- | :--- |
-| `/` | **Document Ingestion** | Drag-and-drop or camera capture for PDF, DOCX, TXT, PNG, and JPG. Multi-engine client-side OCR via Tesseract.js. |
-| `/review` | **Extraction & Verification** | Preview extracted text before sending to AI simplification engine. |
-| `/comparison` | **Dual-Pane Simplification** | Original vs Plain Language comparison, Grade 6 readability scoring, interactive terminology glossary, and sticky bottom TTS audio player. |
-| `/evaluate` | **HCI Evaluation Dashboard** | Interactive 10-Item SUS Calculator (with auto-save & export), 10-Point Mobile Heuristic Checklist, and Benchmark task protocol. |
-
----
-
-## Testing & HCI Evaluation
-Visit [`http://localhost:3000/evaluate`](http://localhost:3000/evaluate) to run:
-- **System Usability Scale (SUS)**: Form auto-persists answers to browser local storage. Click **"Download .TXT for Report"** or **"Copy Score Summary"** for your assessment appendix.
-- **Heuristic Checklist**: 10-point Nielsen-Molich & WCAG 2.2 mobile checklist with empirical severity ratings (0 to 4).
+| `/` | **Document Ingestion** | Drag-and-drop or camera capture (up to 5 pages) for PDF, DOCX, TXT, PNG, and JPG. On-device client-side OCR via Tesseract.js Web Worker and server-side text extraction at `/api/extract-doc`. |
+| `/review` | **OCR Verification & Consent** | Editable OCR review with confidence badge, Flesch-Kincaid grade preview, pre-simplify external processing notice, and `?fail=` recovery simulation states (`low`, `busy`, `down`, `bad`, `large`, `malformed`, `slow`, `timeout`). |
+| `/comparison` | **Dual-Pane Simplification** | Original vs Plain Language comparison, hero metrics, `.ics` / Google / Outlook smart calendar popover, continuous Web Speech audio player (`0.8x`–`2x`), and grounded Document Agent drawer (`/api/agent/chat`). |
+| `/evaluate` | **HCI Evaluation Dashboard** | Interactive 10-Item SUS Calculator (Brooke, 1996), 12-item Nielsen & WCAG 2.2 checklist (defaulting to `untested`), 4 benchmark tasks, and live mobile device/sensor diagnostics. |

@@ -172,7 +172,7 @@ export default function EvaluatePage() {
                       <button
                         type="button"
                         onClick={() => toggleTask(t.id)}
-                        className={`text-xs font-bold px-3 py-1 rounded-lg min-h-[36px] transition-colors ${
+                        className={`text-xs font-bold px-3 py-2 rounded-lg min-h-[44px] transition-colors ${
                           isDone ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700 hover:bg-slate-300"
                         }`}
                       >

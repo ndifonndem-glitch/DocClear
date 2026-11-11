@@ -361,7 +361,7 @@ export const SensorDiagnostics: React.FC = () => {
         <button
           type="button"
           onClick={scanSensors}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors self-start sm:self-auto min-h-[38px]"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors self-start sm:self-auto min-h-[44px]"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Re-scan</span>
@@ -417,7 +417,7 @@ export const SensorDiagnostics: React.FC = () => {
           <button
             type="button"
             onClick={requestIosMotion}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors"
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors min-h-[44px]"
           >
             Enable Motion
           </button>
@@ -486,7 +486,7 @@ export const SensorDiagnostics: React.FC = () => {
                   <button
                     type="button"
                     onClick={sensor.testAction.onClick}
-                    className="text-xs font-bold text-blue-600 hover:text-blue-800 underline ml-2 min-h-[30px]"
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 underline ml-2 min-h-[44px] inline-flex items-center px-1"
                   >
                     {sensor.testAction.label}
                   </button>

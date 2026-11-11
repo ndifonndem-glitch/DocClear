@@ -85,8 +85,17 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     }, 100);
   };
 
-  // Asynchronous voice loading with voiceschanged event listener
+  // Asynchronous voice loading with voiceschanged event listener & saved speed sync
   useEffect(() => {
+    try {
+      const savedRate = parseFloat(localStorage.getItem("docclear_speech_rate") || "");
+      if ([0.8, 1, 1.25, 1.5, 2].includes(savedRate)) {
+        setPlaybackSpeed(savedRate);
+      }
+    } catch {
+      // ignore storage errors
+    }
+
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setIsSpeechSupported(false);
       return;
@@ -340,12 +349,18 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
     setCurrentTime(0);
   };
 
-  // Cycle speed: 1x -> 1.25x -> 1.5x -> 2x without restarting from beginning
+  // Cycle speed: 0.8x -> 1x -> 1.25x -> 1.5x -> 2x without restarting from beginning
   const cycleSpeed = () => {
-    const speeds = [1, 1.25, 1.5, 2];
-    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const speeds = [0.8, 1, 1.25, 1.5, 2];
+    const currentIdx = speeds.indexOf(playbackSpeed);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % speeds.length;
     const nextSpeed = speeds[nextIdx];
     setPlaybackSpeed(nextSpeed);
+    try {
+      localStorage.setItem("docclear_speech_rate", nextSpeed.toString());
+    } catch {
+      // ignore storage errors
+    }
 
     if (isPlaying && !isPaused) {
       startPlaybackTicker(currentTime, nextSpeed);
@@ -550,7 +565,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const timelineDeadlines = data.structured_deadlines || [];
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-36 sm:pb-28 w-full max-w-[1700px] mx-auto px-2 sm:px-0">
+    <div className="space-y-6 sm:space-y-8 pb-44 sm:pb-32 w-full max-w-[1700px] mx-auto px-2 sm:px-0">
       {/* Top Header */}
       <div className="space-y-2 border-b border-slate-200/80 pb-4">
         {data.status === "needs_review" || (data.confidence !== undefined && data.confidence < 0.7) ? (
@@ -643,7 +658,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               <button
                 type="button"
                 onClick={() => setIsOriginalModalOpen(true)}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline text-left pt-1 focus:outline-none"
+                className="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline text-left focus:outline-none min-h-[44px] inline-flex items-center px-1 -ml-1 rounded-lg"
               >
                 See in original
               </button>
@@ -1073,7 +1088,8 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                 type="button"
                 onClick={cycleSpeed}
                 className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 inline-flex items-center justify-center shadow-xs"
-                title="Click to cycle playback speed (1x, 1.25x, 1.5x, 2x)"
+                title="Click to cycle playback speed (0.8x, 1x, 1.25x, 1.5x, 2x)"
+                aria-label={`${playbackSpeed}x playback speed, tap to change`}
               >
                 {playbackSpeed}x
               </button>

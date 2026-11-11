@@ -73,7 +73,7 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
   const description = `${item.description || item.consequenceOrContext || ""}\n\nDocument: ${documentTitle}\nReference: DocClear Plain-Language Summary`.trim();
 
   // Smart parsed date
-  const { startDate, endDate, allDay } = parseEventDateTime(rawTiming, documentContext);
+  const { startDate, endDate, allDay, hasExplicitDate } = parseEventDateTime(rawTiming, documentContext);
 
   const payload: CalendarEventPayload = {
     title: eventTitle,
@@ -153,7 +153,7 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors min-h-[32px] min-w-[32px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-11 h-11 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Close calendar options"
             >
               <X className="w-4 h-4" />
@@ -174,6 +174,11 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
             {rawTiming && (
               <span className="text-[10px] text-slate-500 block">
                 Original text: &quot;{rawTiming}&quot;
+              </span>
+            )}
+            {!hasExplicitDate && (
+              <span className="text-[10px] text-amber-800 block font-medium">
+                No specific calendar date in clause — defaulted to today; adjust date in your calendar app if needed.
               </span>
             )}
           </div>
@@ -208,7 +213,7 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
                 <div className="text-left">
                   <span>Apple / Device Calendar</span>
                   <span className="text-[10px] text-slate-500 block font-normal">
-                    (iPhone, Mac, Android, Windows .ics)
+                    .ics file — no Google or Outlook login needed
                   </span>
                 </div>
               </div>
