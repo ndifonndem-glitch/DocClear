@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import Link from "next/link";
 import { SimplificationResponse, ExtractedDeadline } from "@/types/api";
+import { SPEECH_SPEED_PRESETS, getSpeechSpeedPreset, normalizeSpeechRate } from "@/lib/speech";
 import { CalendarExportPopover } from "@/components/calendar/CalendarExportPopover";
 import { DocumentAgentDrawer } from "@/components/agent/DocumentAgentDrawer";
 
@@ -89,8 +91,9 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   useEffect(() => {
     try {
       const savedRate = parseFloat(localStorage.getItem("docclear_speech_rate") || "");
-      if ([0.8, 1, 1.25, 1.5, 2].includes(savedRate)) {
-        setPlaybackSpeed(savedRate);
+      const normalized = normalizeSpeechRate(savedRate);
+      if (localStorage.getItem("docclear_speech_rate")) {
+        setPlaybackSpeed(normalized);
       }
     } catch {
       // ignore storage errors
@@ -351,7 +354,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
 
   // Cycle speed: 0.8x -> 1x -> 1.25x -> 1.5x -> 2x without restarting from beginning
   const cycleSpeed = () => {
-    const speeds = [0.8, 1, 1.25, 1.5, 2];
+    const speeds = SPEECH_SPEED_PRESETS.map((preset) => preset.val);
     const currentIdx = speeds.indexOf(playbackSpeed);
     const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % speeds.length;
     const nextSpeed = speeds[nextIdx];
@@ -565,30 +568,60 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
   const timelineDeadlines = data.structured_deadlines || [];
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-44 sm:pb-32 w-full max-w-[1700px] mx-auto px-2 sm:px-0">
+    <div className="space-y-6 sm:space-y-8 pb-44 sm:pb-32 w-full max-w-[1700px] mx-auto min-w-0">
       {/* Top Header */}
       <div className="space-y-2 border-b border-slate-200/80 pb-4">
         {data.status === "needs_review" || (data.confidence !== undefined && data.confidence < 0.7) ? (
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 shadow-xs" role="alert">
+
+
+          <div className="flex items-start gap-3 p-4 sm:p-5 rounded-2xl bg-amber-100/95 border-2 border-amber-500 text-amber-950 shadow-sm" role="alert">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-200 text-amber-950 uppercase tracking-wide">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-extrabold bg-amber-500 text-white uppercase tracking-wide shadow-2xs">
                   Status: Needs Review
                 </span>
                 <span className="text-xs font-semibold text-amber-900 font-mono">
                   Confidence: {Math.round((data.confidence ?? 0.42) * 100)}% (Below 0.70 Threshold)
                 </span>
+                {data.bffLabel && (
+                  <span className="text-amber-950 bg-amber-200/80 px-2 py-0.5 rounded font-mono text-[11px]">
+                    BFF: {data.bffLabel} · {data.runId}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-amber-800 leading-relaxed">
-                The agent evaluated this document with low confidence. Please verify all key terms, amounts, and dates directly against the original text before relying on this summary.
+                The automated summary has low confidence. Verify every figure, due date, and penalty against the original text before acting on it.
+
               </p>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOriginalModalOpen(true)}
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-amber-900 hover:bg-amber-950 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-600"
+                >
+                  <FileText className="w-4 h-4" />
+                  Compare with Original
+                </button>
+                <Link
+                  href="/review"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white border border-amber-400 hover:bg-amber-50 text-amber-950 text-xs font-bold inline-flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-600"
+                >
+                  Edit Source Text
+                </Link>
+              </div>
+
             </div>
           </div>
         ) : (
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+          <div className="inline-flex flex-wrap items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
             <span>Simplified successfully</span>
             <span className="text-emerald-700 font-mono text-[11px]">({Math.round((data.confidence ?? 0.98) * 100)}% confidence)</span>
+            {data.bffLabel && (
+              <span className="text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full font-mono text-[11px]">
+                BFF: {data.bffLabel} · {data.runId}
+              </span>
+            )}
           </div>
         )}
         <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -601,29 +634,37 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
       </div>
 
       {/* Top 3 Metric Cards Row (Responsive Grid - No Orphan Cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {heroMetrics.map((metric, idx) => (
-          <div
-            key={idx}
-            className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1"
-          >
-            <span className="text-xs font-bold text-slate-600 block uppercase tracking-wide">
-              {metric.label}
-            </span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 min-w-0">
+        {heroMetrics.map((metric, idx) => {
+          const valStr = String(metric.value ?? "");
+          const isCompact = valStr.length > 16;
+          return (
             <div
-              className={`text-2xl sm:text-3xl font-extrabold tracking-tight my-1 ${
-                idx === 0 ? "text-blue-700" : "text-slate-900"
-              }`}
+              key={idx}
+              className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1 min-w-0 overflow-hidden"
             >
-              {metric.value}
+              <span className="text-xs font-bold text-slate-600 block uppercase tracking-wide break-words [overflow-wrap:anywhere]">
+                {metric.label}
+              </span>
+              <div
+                className={`${
+                  isCompact ? "text-lg sm:text-2xl" : "text-2xl sm:text-3xl"
+                } font-extrabold tracking-tight my-1 break-words [overflow-wrap:anywhere] leading-snug ${
+                  idx === 0 ? "text-blue-700" : "text-slate-900"
+                }`}
+              >
+                {metric.value}
+              </div>
+              <span className="text-xs text-slate-600 block leading-normal break-words [overflow-wrap:anywhere]">
+                {metric.subtext}
+              </span>
             </div>
-            <span className="text-xs text-slate-600 block leading-normal">{metric.subtext}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Middle 3 Category Detail Cards Row (No Orphan Cards on Desktop/Tablet) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 min-w-0">
         {detailSections.map((section, idx) => {
           const headerColor =
             section.theme === "blue"
@@ -635,7 +676,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
           return (
             <div
               key={idx}
-              className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-4"
+              className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-4 min-w-0 overflow-hidden"
             >
               <div className="space-y-3">
                 <span className={`text-xs font-extrabold uppercase tracking-wider block ${headerColor}`}>
@@ -646,10 +687,11 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                   {section.items.map((item, itemIdx) => (
                     <div
                       key={itemIdx}
-                      className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2"
+                      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2 min-w-0"
                     >
-                      <span className="text-slate-500 font-normal">{item.label}</span>
-                      <span className="font-bold text-slate-900 text-right">{item.value}</span>
+                      <span className="text-slate-500 font-normal break-words [overflow-wrap:anywhere] min-w-0">{item.label}</span>
+                      <span className="font-bold text-slate-900 text-left sm:text-right break-words [overflow-wrap:anywhere] min-w-0 max-w-full">{item.value}</span>
+
                     </div>
                   ))}
                 </div>
@@ -708,7 +750,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               return (
                 <div
                   key={idx}
-                  className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-2.5 transition-all hover:border-slate-300"
+                  className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-2.5 transition-all hover:border-slate-300 min-w-0"
                 >
                   {/* Header Row: Step Number, Dot Indicator, Date & Tag */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -717,7 +759,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                         {idx + 1}
                       </span>
                       <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} aria-hidden="true" />
-                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide truncate">
+                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide break-words [overflow-wrap:anywhere] leading-snug">
                         {item.dateOrDuration}
                       </span>
                     </div>
@@ -730,14 +772,15 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                   </div>
 
                   {/* Action Title */}
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug break-words [overflow-wrap:anywhere]">
                     {item.title || item.actionRequired}
                   </h3>
 
                   {/* Context / Description */}
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed break-words [overflow-wrap:anywhere]">
                     {item.description || item.consequenceOrContext || item.actionRequired}
                   </p>
+    
 
                   {/* Add to Calendar Smart Popover Menu (Google, Apple/Device, Outlook) */}
                   <div className="pt-0.5">
@@ -792,7 +835,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
         {/* Desktop Side-by-Side Comparison Container (Visible on >= 1024px) */}
         <div className="hidden lg:grid lg:grid-cols-2 gap-6">
           {/* Left Column: Plain-Language Summary */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 flex flex-col justify-between min-w-0 overflow-hidden">
             <div className="space-y-4">
               <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-blue-50 text-blue-700 rounded-xl">
@@ -804,7 +847,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                 </div>
               </div>
 
-              <div className="text-slate-800 text-base leading-relaxed bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+              <div className="text-slate-800 text-base leading-relaxed bg-slate-50/70 p-4 rounded-xl border border-slate-100 break-words [overflow-wrap:anywhere]">
                 {data.simplified_text}
               </div>
 
@@ -830,7 +873,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
           </div>
 
           {/* Right Column: Original Source Document */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 flex flex-col justify-between min-w-0 overflow-hidden">
             <div className="space-y-4">
               <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
@@ -842,7 +885,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                 </div>
               </div>
 
-              <div className="text-slate-800 text-xs sm:text-sm leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap max-h-[480px] overflow-y-auto">
+              <div className="text-slate-800 text-xs sm:text-sm leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap break-words [overflow-wrap:anywhere] max-h-[480px] overflow-y-auto">
                 {data.original_text}
               </div>
             </div>
@@ -856,7 +899,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
         {/* Mobile Tabbed Content (Visible on < 1024px) */}
         <div className="lg:hidden">
           {mobileCompareTab === "simplified" ? (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4 min-w-0 overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-blue-50 text-blue-700 rounded-xl">
                   <BookOpen className="w-5 h-5 stroke-[2.2]" />
@@ -867,7 +910,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                 </div>
               </div>
 
-              <div className="text-slate-800 text-sm sm:text-base leading-relaxed bg-slate-50/70 p-3.5 sm:p-5 rounded-xl border border-slate-100">
+              <div className="text-slate-800 text-sm sm:text-base leading-relaxed bg-slate-50/70 p-3.5 sm:p-5 rounded-xl border border-slate-100 break-words [overflow-wrap:anywhere]">
                 {data.simplified_text}
               </div>
 
@@ -891,7 +934,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               )}
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4 min-w-0 overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
                   <FileText className="w-5 h-5 stroke-[2.2]" />
@@ -902,7 +945,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
                 </div>
               </div>
 
-              <div className="text-slate-800 text-xs sm:text-sm leading-relaxed bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+              <div className="text-slate-800 text-xs sm:text-sm leading-relaxed bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap break-words [overflow-wrap:anywhere] max-h-[400px] overflow-y-auto">
                 {data.original_text}
               </div>
             </div>
@@ -912,7 +955,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
 
       {/* KEYWORDS & TRICKY TERMS GLOSSARY */}
       {data.vocabulary && data.vocabulary.length > 0 && (
-        <section className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+        <section className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4 min-w-0 overflow-hidden">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-amber-50 text-amber-800 rounded-xl">
               <HelpCircle className="w-5 h-5 stroke-[2.2]" />
@@ -922,6 +965,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               <p className="text-xs text-slate-600">
                 Definitions for legal, tenancy, and employment terms in this document.
               </p>
+
             </div>
           </div>
 
@@ -929,7 +973,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
             {data.vocabulary.map((v, idx) => (
               <div
                 key={idx}
-                className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-1"
+                className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-1 min-w-0 overflow-hidden [overflow-wrap:anywhere]"
               >
                 <span className="text-xs font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block capitalize">
                   {v.term}
@@ -1087,11 +1131,12 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data }) => {
               <button
                 type="button"
                 onClick={cycleSpeed}
-                className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 inline-flex items-center justify-center shadow-xs"
-                title="Click to cycle playback speed (0.8x, 1x, 1.25x, 1.5x, 2x)"
-                aria-label={`${playbackSpeed}x playback speed, tap to change`}
+                className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 inline-flex items-center justify-center whitespace-nowrap shadow-xs"
+                title="Click to cycle playback speed (0.8x Slow, 1x Normal, 1.25x Steady, 1.5x Fast, 2x Faster)"
+                aria-label={`Speech speed ${getSpeechSpeedPreset(playbackSpeed).label}, tap to change`}
+
               >
-                {playbackSpeed}x
+                {playbackSpeed}x · {getSpeechSpeedPreset(playbackSpeed).shortLabel}
               </button>
 
               {isPlaying && (

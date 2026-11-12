@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Check, RotateCcw, Sparkles, BookOpen, ShieldCheck } from "lucide-react";
+import { RotateCcw, Sparkles, BookOpen, ShieldCheck, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { calculateReadability } from "@/lib/readability";
 
@@ -44,42 +44,47 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
   return (
     <div className="space-y-5">
       {/* OCR Status & Quality Indicator */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 bg-white border border-slate-200 rounded-xl">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Scan Quality:</span>
           <span
             className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
               ocrConfidence >= 0.8
                 ? "bg-emerald-100 text-emerald-800"
-                : ocrConfidence >= 0.6
+                : ocrConfidence >= 0.7
                 ? "bg-amber-100 text-amber-800"
                 : "bg-rose-100 text-rose-800"
             }`}
           >
             {Math.round(ocrConfidence * 100)}% Confidence
           </span>
-          {ocrConfidence < 0.8 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300">
-              Check this
+          {ocrConfidence < 0.7 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-950 border border-amber-400">
+              Low confidence — verify below
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-slate-700">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-700 min-w-0">
           <span>{metrics.wordCount} words</span>
-          <span>•</span>
+          <span aria-hidden="true">•</span>
           <span className="flex items-center gap-1 font-semibold text-slate-800">
-            <BookOpen className="w-3.5 h-3.5 text-blue-700" aria-hidden="true" />
-            Grade {metrics.fleschKincaidGrade} ({metrics.readingLevelDescription})
+            <BookOpen className="w-3.5 h-3.5 text-blue-700 flex-shrink-0" aria-hidden="true" />
+            <span>
+              Grade {metrics.fleschKincaidGrade} ({metrics.readingLevelDescription})
+            </span>
           </span>
         </div>
       </div>
 
-      {/* Editable Text Area */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label htmlFor="document-text-editor" className="font-bold text-slate-900 text-base">
-            Inspect & Correct Document Text
+      {/* Prominent Editable Text Area Guidance (Pilot Finding #1) */}
+      <div className="space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label htmlFor="document-text-editor" className="font-bold text-slate-900 text-base flex items-center gap-2">
+            <span>Inspect &amp; Edit Extracted Text</span>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+              Editable
+            </span>
           </label>
           {isModified && (
             <button
@@ -93,20 +98,24 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
             </button>
           )}
         </div>
-        <p className="text-xs text-slate-600">
-          Fix any misspelled names, numbers, or dates before sending to the AI simplification service.
-        </p>
+
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/90 border border-amber-300 text-xs sm:text-sm text-amber-950 leading-snug">
+          <PencilLine className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="break-words">
+            <strong>Tap inside the text box below to edit:</strong> Check dates, dollar amounts, and names before you tap Simplify.
+          </p>
+        </div>
 
         <textarea
           id="document-text-editor"
-          rows={12}
+          rows={10}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="w-full p-4 text-slate-900 bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl leading-relaxed font-sans text-base transition-all resize-y min-h-[200px]"
+          className="w-full p-3.5 sm:p-4 text-slate-900 bg-white border-2 border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl leading-relaxed font-sans text-base transition-all resize-y min-h-[200px] shadow-xs"
           aria-describedby="editor-hint"
         />
         <span id="editor-hint" className="sr-only">
-          Multiline text box containing the document text extracted from your image. You can edit any word.
+          Multiline editable text box containing the document text extracted from your image. You can edit any word.
         </span>
       </div>
 
@@ -117,8 +126,8 @@ export const TextReviewEditor: React.FC<TextReviewEditorProps> = ({
         className="flex items-start gap-2.5 p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-slate-800 leading-relaxed"
       >
         <ShieldCheck className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
-        <p>
-          <strong>Privacy Notice:</strong> To simplify this text, DocClear sends the edited text above to Google Gemini (when configured), which may process it outside New Zealand. Your original photo stays on your device, and nothing is saved on our server. Only submit sample or non-confidential text on free-tier API keys.
+        <p className="break-words">
+          <strong>Privacy Notice:</strong> To simplify this document, DocClear processes your edited text via our secure BFF / Gemini service (which may process text outside New Zealand). Your raw image stays out of persistent storage. Only submit sample or non-confidential text on free-tier keys.
         </p>
       </div>
 

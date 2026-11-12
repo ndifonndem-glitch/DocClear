@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { AppError } from "@/lib/errors";
 import { requestSimplification } from "@/services/simplification";
+import { updateMediaMetricsLog } from "@/lib/media-metrics";
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function ReviewPage() {
   const [originalOcr, setOriginalOcr] = useState<string>("");
   const [confidence, setConfidence] = useState<number>(0.92);
   const [fileName, setFileName] = useState<string>("Document");
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingStep, setLoadingStep] = useState<number>(1);
   const [isSlow, setIsSlow] = useState<boolean>(false);
@@ -32,6 +34,8 @@ export default function ReviewPage() {
     const storedOriginal = sessionStorage.getItem("docclear_original_ocr");
     const storedConf = sessionStorage.getItem("docclear_confidence");
     const storedName = sessionStorage.getItem("docclear_filename");
+    const storedImage = sessionStorage.getItem("docclear_capture_image");
+    if (storedImage) setImageDataUrl(storedImage);
 
     if (!storedText) {
       // If user navigated directly without scanning a document, redirect home
@@ -87,14 +91,17 @@ export default function ReviewPage() {
       setIsSlow(true);
     }, 5000);
 
+    const uploadStartedAt = performance.now();
     try {
       const response = await requestSimplification(
         {
           text: editedText,
           readingLevel: "simplified",
+          ...(imageDataUrl ? { imageDataUrl } : {}),
         },
         { signal: abortControllerRef.current.signal }
       );
+      updateMediaMetricsLog({ uploadMs: Math.round(performance.now() - uploadStartedAt) });
 
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
       if (stepTimerRef.current) clearInterval(stepTimerRef.current);
@@ -155,7 +162,7 @@ export default function ReviewPage() {
   return (
     <div className="space-y-6">
       {/* Navigation & Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4">
         <button
           type="button"
           onClick={() => router.push("/")}

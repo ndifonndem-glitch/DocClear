@@ -10,7 +10,13 @@ import {
 } from "@/types/api";
 import { calculateReadability } from "@/lib/readability";
 import { sanitizeText, validateDocumentText } from "@/lib/validation";
-import { probeEduStackHealth } from "@/lib/edustack/connector";
+import {
+  probeEduStackHealth,
+  forwardToEduStackBFF,
+  dataUrlToImageBlob,
+  EduStackBFFHttpError,
+  EduStackBFFResult,
+} from "@/lib/edustack/connector";
 
 // Comprehensive Vocabulary dictionary for legal, administrative, tenancy, and healthcare terms
 const COMMON_GLOSSARY: Record<string, string> = {
@@ -55,7 +61,7 @@ export async function POST(req: NextRequest) {
       retryable: true,
     };
     return NextResponse.json(errBody, { status: 503 });
-  } else if (failParam === "busy") {
+  } else if (failParam === "busy" || failParam === "rate") {
     const errBody: APIErrorResponse = {
       status: "error",
       code: "rate_limited",
@@ -90,6 +96,7 @@ export async function POST(req: NextRequest) {
     const body: SimplificationRequest = await req.json();
     const rawText = body.text || "";
     const cleanedText = sanitizeText(rawText);
+    const imageBlob = body.imageDataUrl ? dataUrlToImageBlob(body.imageDataUrl) : null;
 
     // Validate text length and structure
     const validation = validateDocumentText(cleanedText);
@@ -116,18 +123,45 @@ export async function POST(req: NextRequest) {
     let heroMetrics: HeroMetric[] = [];
     let detailSections: DetailSection[] = [];
     let cautionaryNote = "";
-    let providerUsed = "local";
+    let usedGemini = false;
+    let bffResult: EduStackBFFResult | null = null;
     let geminiRes: any = null;
 
-    // 1. Try EduStack Lite BFF if active or hybrid mode configured
-    const edustackStatus = await probeEduStackHealth();
-    if (edustackStatus.isAvailable && (!geminiKey || process.env.EDUSTACK_MODE === "hybrid")) {
-      console.log(`[EduStack Connector] Active BFF detected at ${edustackStatus.url} (mode: ${edustackStatus.mode}, latency: ${edustackStatus.latencyMs}ms)`);
-      providerUsed = "edustack_bff";
+    // 1. Call EduStack Lite BFF first when an image capture is present (tokens remain server-side).
+    if (process.env.EDUSTACK_MODE !== "off") {
+      if (imageBlob) {
+        try {
+          bffResult = await forwardToEduStackBFF(imageBlob, cleanedText.slice(0, 180));
+          console.log(
+            `[EduStack Connector] BFF -> Agent finished: status=${bffResult.status}, label=${bffResult.label}, confidence=${bffResult.confidence}, runId=${bffResult.runId}`
+          );
+        } catch (bffErr) {
+          if (bffErr instanceof EduStackBFFHttpError) {
+            const errBody: APIErrorResponse = {
+              status: "error",
+              code: bffErr.code,
+              message: bffErr.message,
+              retryable: bffErr.retryable,
+            };
+            return NextResponse.json(errBody, { status: bffErr.status });
+          }
+          console.warn(
+            "[EduStack Connector] BFF unreachable, falling back to Gemini / local engine:",
+            bffErr instanceof Error ? bffErr.message : bffErr
+          );
+        }
+      } else {
+        const edustackStatus = await probeEduStackHealth();
+        if (edustackStatus.isAvailable) {
+          console.log(
+            `[EduStack Connector] BFF reachable at ${edustackStatus.url} (mode=${edustackStatus.mode}); text-only request routed to Gemini / local engine.`
+          );
+        }
+      }
     }
 
-    // 2. Try Google Gemini LLM API if key is present and not superseded
-    if (geminiKey && providerUsed !== "edustack_bff") {
+    // 2. Try Google Gemini LLM API if configured for plain-language rewriting.
+    if (geminiKey) {
       try {
         geminiRes = await simplifyWithGemini(cleanedText, geminiKey);
         if (geminiRes && geminiRes.simplified_text && geminiRes.hero_metrics?.length >= 3) {
@@ -140,14 +174,14 @@ export async function POST(req: NextRequest) {
           heroMetrics = geminiRes.hero_metrics || [];
           detailSections = geminiRes.detail_sections || [];
           cautionaryNote = geminiRes.cautionary_note || "";
-          providerUsed = "gemini";
+          usedGemini = true;
         }
       } catch (geminiErr) {
         console.warn("Gemini API call failed, falling back to dynamic local analytical engine:", geminiErr);
       }
     }
 
-    // 2. Dynamic Local Analytical Engine (100% offline accuracy & document-adaptive)
+    // 3. Dynamic Local Analytical Engine (offline accuracy & document-adaptive fallback).
     if (!simplifiedText || heroMetrics.length === 0 || detailSections.length === 0) {
       if (!simplifiedText) {
         simplifiedText = generatePlainLanguage(cleanedText);
@@ -161,7 +195,6 @@ export async function POST(req: NextRequest) {
       if (heroMetrics.length === 0) heroMetrics = localResult.heroMetrics;
       if (detailSections.length === 0) detailSections = localResult.detailSections;
       if (!cautionaryNote) cautionaryNote = localResult.cautionaryNote;
-      if (providerUsed !== "gemini") providerUsed = "local";
     }
 
     const simplifiedMetrics = calculateReadability(simplifiedText);
@@ -172,7 +205,7 @@ export async function POST(req: NextRequest) {
       vocabulary = geminiRes.vocabulary;
     }
 
-    const runId = "doc_" + Math.random().toString(36).substring(2, 10);
+    const runId = bffResult?.runId || "doc_" + Math.random().toString(36).substring(2, 10);
 
     // Calculate readability reduction
     const rawReduction =
@@ -186,20 +219,45 @@ export async function POST(req: NextRequest) {
     const isShortText = originalMetrics.wordCount < 25;
     const reliability = isShortText ? "preliminary (short text)" : "reliable";
 
-    const isLowConfidence = failParam === "low";
-    const finalConfidence = isLowConfidence ? 0.42 : providerUsed === "gemini" ? 0.98 : 0.95;
+    const bffConfidence = bffResult ? bffResult.confidence : undefined;
+    const isLowConfidence =
+      failParam === "low" ||
+      bffResult?.status === "needs_review" ||
+      (bffConfidence !== undefined && bffConfidence < 0.7);
+    const finalConfidence =
+      failParam === "low"
+        ? 0.42
+        : bffConfidence !== undefined
+        ? bffConfidence
+        : usedGemini
+        ? 0.98
+        : 0.95;
     const finalStatus: "done" | "needs_review" = isLowConfidence ? "needs_review" : "done";
+    const providerChain = [bffResult ? "edustack_bff" : null, usedGemini ? "gemini" : "local"]
+      .filter(Boolean)
+      .join("+");
+
+    if (bffResult?.summary && bffResult.label !== "good") {
+      cautionaryNote = `Image check (${bffResult.label}): ${bffResult.summary} ${cautionaryNote}`.trim();
+    }
 
     const response: SimplificationResponse = {
       status: finalStatus,
       runId,
-      label:
-        providerUsed === "gemini"
-          ? "simplified_by_gemini"
-          : providerUsed === "edustack_bff"
-          ? "simplified_by_edustack_bff"
-          : "simplified_by_local_engine",
+      label: bffResult
+        ? `edustack_${bffResult.label}`
+        : usedGemini
+        ? "simplified_by_gemini"
+        : "simplified_by_local_engine",
       confidence: finalConfidence,
+      provider: providerChain,
+      ...(bffResult
+        ? {
+            bffStatus: bffResult.status,
+            bffLabel: bffResult.label,
+            bffSummary: bffResult.summary,
+          }
+        : {}),
       original_text: cleanedText,
       simplified_text: simplifiedText,
       document_title: documentTitle,

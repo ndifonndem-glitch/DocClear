@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Calendar as CalendarIcon,
   X,
@@ -126,21 +127,33 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        className="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1.5 focus:outline-none min-h-[44px] px-1 rounded-lg"
+        className="text-xs font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] px-3 py-2 rounded-xl transition-colors"
         aria-label={`Add to calendar: ${eventTitle}`}
       >
-        <CalendarIcon className="w-4 h-4 text-blue-700" aria-hidden="true" />
-        <span>Add to calendar</span>
+        <CalendarIcon className="w-4 h-4 text-blue-700 flex-shrink-0" aria-hidden="true" />
+        <span className="whitespace-nowrap">Add to calendar</span>
       </button>
 
-      {/* Popover Card */}
-      {isOpen && (
-        <div
-          ref={popoverRef}
-          role="dialog"
-          aria-label="Add to calendar options"
-          className="absolute left-0 right-auto mt-2 w-[min(calc(100vw-2.5rem),24rem)] bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 z-50 space-y-3.5 animate-in fade-in zoom-in-95 duration-150"
-        >
+      {/* Responsive Portal Modal (Bottom Sheet on Phone, Centered Dialog on Desktop) */}
+      {isOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-[1px] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsOpen(false);
+                buttonRef.current?.focus();
+              }
+            }}
+          >
+            <div
+              ref={popoverRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Add to calendar options"
+              className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl border border-slate-200 shadow-2xl p-4 sm:p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-5 space-y-3.5 max-h-[88vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-150"
+            >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <div className="flex items-center gap-2">
@@ -161,8 +174,8 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
           </div>
 
           {/* Event Preview Pill */}
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 space-y-1">
-            <span className="text-xs font-bold text-slate-900 block truncate leading-tight">
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 space-y-1 min-w-0">
+            <span className="text-xs font-bold text-slate-900 block break-words [overflow-wrap:anywhere] leading-snug">
               {eventTitle}
             </span>
             <div className="flex items-center gap-1.5 text-[11px] text-blue-700 font-semibold">
@@ -246,8 +259,10 @@ export const CalendarExportPopover: React.FC<CalendarExportPopoverProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
             <span>Zero login required • Formatted client-side with 100% privacy</span>
           </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

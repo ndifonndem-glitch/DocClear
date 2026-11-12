@@ -448,7 +448,7 @@ export const SensorDiagnostics: React.FC = () => {
               key={sensor.id}
               className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col justify-between space-y-2.5"
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-white border border-slate-200 text-blue-600 shrink-0 shadow-2xs">
                     <Icon className="w-4 h-4" />
@@ -477,10 +477,10 @@ export const SensorDiagnostics: React.FC = () => {
                 )}
               </div>
 
-              <p className="text-xs text-slate-600 leading-normal">{sensor.details}</p>
+              <p className="text-xs text-slate-600 leading-normal break-words">{sensor.details}</p>
 
-              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                <code className="text-slate-400 font-mono">{sensor.api}</code>
+              <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px] min-w-0">
+                <code className="text-slate-500 font-mono break-all">{sensor.api}</code>
 
                 {sensor.testAction && (
                   <button

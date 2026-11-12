@@ -43,8 +43,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full bg-slate-50 text-slate-900 antialiased">
-      <body className={`${inter.className} min-h-[100dvh] flex flex-col pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]`}>
+    <html lang="en" className="h-full bg-slate-50 text-slate-900 antialiased overflow-x-clip">
+      <body className={`${inter.className} min-h-[100dvh] flex flex-col overflow-x-clip pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]`}>
         {/* WCAG 2.4.1: Bypass Blocks */}
         <a
           href="#main-content"
@@ -57,8 +57,8 @@ export default function RootLayout({
         <Navbar />
 
         {/* Main Content Area */}
-        <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none pb-28 sm:pb-12 w-full">
-          <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-6 sm:py-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none pb-28 sm:pb-12 w-full min-w-0">
+          <div className="w-full min-w-0 px-4 sm:px-8 lg:px-12 xl:px-16 py-6 sm:py-8">
             {children}
           </div>
         </main>

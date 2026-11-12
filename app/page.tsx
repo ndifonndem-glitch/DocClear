@@ -7,6 +7,7 @@ import { CameraCapture, SupportedFileType } from "@/components/capture/CameraCap
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { extractTextFromImage, extractTextFromMultipleImages } from "@/lib/ocr";
+import { updateMediaMetricsLog } from "@/lib/media-metrics";
 import { OCRProgress, ScannedPage } from "@/types/document";
 
 const SAMPLE_DOCUMENTS = [
@@ -67,6 +68,7 @@ export default function Dashboard() {
   };
 
   const handleSampleSelected = (sampleText: string, title: string) => {
+    sessionStorage.removeItem("docclear_capture_image");
     sessionStorage.setItem("docclear_extracted_text", sampleText);
     sessionStorage.setItem("docclear_original_ocr", sampleText);
     sessionStorage.setItem("docclear_filename", title);
@@ -85,12 +87,18 @@ export default function Dashboard() {
       let confidence = 0.95;
       let docName = "Document";
 
+      let captureImageForBff: string | null = null;
+      let ocrMs: number | undefined;
+
       // Case A: Multi-page camera scans (1 to 5 pages)
       if (scannedPages.length > 0) {
         docName = `Scanned Document (${scannedPages.length} ${scannedPages.length === 1 ? "page" : "pages"})`;
+        captureImageForBff = scannedPages[0].dataUrl;
+        const ocrStart = performance.now();
         const result = await extractTextFromMultipleImages(scannedPages, (p) => {
           setOcrProgress(p);
         });
+        ocrMs = Math.round(performance.now() - ocrStart);
         extractedText = result.text;
         confidence = result.confidence;
       }
@@ -99,9 +107,12 @@ export default function Dashboard() {
       else if (fileType === "image" && selectedFile) {
         docName = selectedFile.name;
         if (!previewUrl) throw new Error("Image preview is missing. Please reselect the file.");
+        captureImageForBff = previewUrl;
+        const ocrStart = performance.now();
         const result = await extractTextFromImage(previewUrl, (p) => {
           setOcrProgress(p);
         });
+        ocrMs = Math.round(performance.now() - ocrStart);
         extractedText = result.text;
         confidence = result.confidence;
       }
@@ -172,6 +183,12 @@ export default function Dashboard() {
         sessionStorage.setItem("docclear_original_ocr", extractedText.trim());
         sessionStorage.setItem("docclear_filename", docName);
         sessionStorage.setItem("docclear_confidence", confidence.toString());
+        if (captureImageForBff) {
+          sessionStorage.setItem("docclear_capture_image", captureImageForBff);
+        } else {
+          sessionStorage.removeItem("docclear_capture_image");
+        }
+        updateMediaMetricsLog({ fileName: docName, ...(ocrMs !== undefined ? { ocrMs } : {}) });
       } catch (storageErr) {
         console.warn("Storage quota warning:", storageErr);
       }
@@ -190,6 +207,11 @@ export default function Dashboard() {
   };
 
   const handleClear = () => {
+    try {
+      sessionStorage.removeItem("docclear_capture_image");
+    } catch {
+      // ignore storage errors
+    }
     setSelectedFile(null);
     setPreviewUrl(null);
     setFileType(null);

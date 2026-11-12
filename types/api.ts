@@ -1,6 +1,7 @@
 export interface SimplificationRequest {
   text: string;
   readingLevel?: "simplified" | "standard" | "detailed";
+  imageDataUrl?: string;
 }
 
 export interface ReadingLevelMetrics {
@@ -56,6 +57,10 @@ export interface SimplificationResponse {
   runId: string;
   label: string;
   confidence: number;
+  provider?: string;
+  bffStatus?: "done" | "needs_review";
+  bffLabel?: string;
+  bffSummary?: string;
   original_text: string;
   simplified_text: string;
   document_title?: string;

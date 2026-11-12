@@ -21,6 +21,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ScannedPage } from "@/types/document";
 import { PermissionDialog, PermissionStatus, PermissionType } from "@/components/ui/PermissionDialog";
+import { reencodeImageToJpeg } from "@/lib/ocr";
+import { updateMediaMetricsLog } from "@/lib/media-metrics";
 
 export type SupportedFileType = "image" | "pdf" | "docx" | "text";
 
@@ -329,14 +331,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     const name = file.name.toLowerCase();
 
     if (file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|bmp|gif|tiff)$/i.test(name)) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          // If already in multi-page mode and under limit, add as a page
+      void reencodeImageToJpeg(file, 1280, 0.85)
+        .then(({ dataUrl, rawBytes, byteSize }) => {
+          updateMediaMetricsLog({ fileName: file.name, rawBytes, compressedBytes: byteSize });
           if (localPages.length > 0 && localPages.length < MAX_PAGES_LIMIT) {
             const newPage: ScannedPage = {
               id: `page_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-              dataUrl: reader.result,
+              dataUrl,
               rotation: 0,
               timestamp: Date.now(),
             };
@@ -344,11 +345,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             setLocalPages(updated);
             onUpdateScannedPages?.(updated);
           } else {
-            onFileSelected(file, reader.result, "image");
+            onFileSelected(file, dataUrl, "image");
           }
-        }
-      };
-      reader.readAsDataURL(file);
+        })
+        .catch(() => onError?.("Could not read selected image file."));
     } else if (name.endsWith(".pdf") || file.type === "application/pdf") {
       onFileSelected(file, "", "pdf");
     } else if (
@@ -396,7 +396,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   };
 
   // Capture current video frame and add to multi-page tray
-  const handleShutterCapture = () => {
+  const handleShutterCapture = async () => {
     if (localPages.length >= MAX_PAGES_LIMIT) {
       onError?.(`Limit reached: Maximum ${MAX_PAGES_LIMIT} photos per document.`);
       return;
@@ -412,7 +412,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        const rawDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        const { dataUrl, rawBytes, byteSize } = await reencodeImageToJpeg(rawDataUrl, 1280, 0.85);
+        updateMediaMetricsLog({
+          fileName: `camera_page_${localPages.length + 1}.jpg`,
+          rawBytes,
+          compressedBytes: byteSize,
+        });
 
         // Ambient-Light assessment from captured image (Supervisor Checklist Item 3)
         try {
@@ -912,18 +918,18 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                 <span>Captured Pages ({localPages.length}/{MAX_PAGES_LIMIT})</span>
                 <span className="text-cyan-400">Tap to inspect & rotate</span>
               </div>
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
+              <div className="flex items-center gap-3.5 overflow-x-auto pb-1 pt-2 pr-2 scrollbar-thin">
                 {localPages.map((page, idx) => (
                   <div
                     key={page.id}
-                    className="relative flex-shrink-0 w-14 h-18 bg-black rounded-lg overflow-hidden border border-slate-600 shadow-sm group cursor-pointer"
+                    className="relative flex-shrink-0 w-20 h-24 group cursor-pointer"
                     onClick={() => setInspectingPage(page)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={page.dataUrl}
                       alt={`Page ${idx + 1}`}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain bg-black rounded-lg border border-slate-600 shadow-sm"
                       style={{ transform: `rotate(${page.rotation}deg)` }}
                     />
                     <div className="absolute top-1 left-1 bg-black/80 px-1 py-0.5 rounded text-[9px] font-extrabold text-white">
@@ -933,10 +939,12 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleDeletePage(page.id, e)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-rose-600 hover:bg-rose-700 rounded-full flex items-center justify-center text-white"
+                      className="absolute -top-2 -right-2 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-rose-400"
                       aria-label={`Delete Page ${idx + 1}`}
                     >
-                      <X className="w-3 h-3" />
+                      <span className="w-6 h-6 bg-rose-600 hover:bg-rose-700 rounded-full flex items-center justify-center text-white shadow-md">
+                        <X className="w-3.5 h-3.5" />
+                      </span>
                     </button>
                   </div>
                 ))}

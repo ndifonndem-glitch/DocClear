@@ -18,7 +18,10 @@ import {
   Check,
   Folder,
   Camera,
+
+
 } from "lucide-react";
+import { SPEECH_SPEED_PRESETS, normalizeSpeechRate } from "@/lib/speech";
 
 export const Navbar = () => {
   const pathname = usePathname();
@@ -37,7 +40,7 @@ export const Navbar = () => {
     }
     const savedRate = localStorage.getItem("docclear_speech_rate");
     if (savedRate) {
-      setSpeechRate(parseFloat(savedRate));
+      setSpeechRate(normalizeSpeechRate(savedRate));
     }
     const savedPerm = localStorage.getItem("docclear_perm_camera") || localStorage.getItem("docclear_device_permission");
     if (savedPerm) {
@@ -273,12 +276,14 @@ export const Navbar = () => {
                   <Volume2 className="w-4 h-4 text-emerald-600" />
                   Speech Reading Speed (TTS)
                 </label>
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {[
-                    { label: "0.8x Slow", val: 0.8 },
-                    { label: "1.0x Normal", val: 1.0 },
-                    { label: "1.2x Fast", val: 1.2 },
-                  ].map((item) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  {SPEECH_SPEED_PRESETS.map((item) => (
+
+
+
+
+
+
                     <button
                       key={item.val}
                       type="button"

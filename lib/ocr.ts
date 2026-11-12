@@ -239,3 +239,91 @@ export async function extractTextFromMultipleImages(
     }
   }
 }
+
+
+/**
+ * Computes approximate decoded binary byte length of a base64 data URL.
+ */
+export function estimateDataUrlByteSize(dataUrl: string): number {
+  const commaIdx = dataUrl.indexOf(",");
+  if (commaIdx === -1) return dataUrl.length;
+  const base64 = dataUrl.slice(commaIdx + 1);
+  let padding = 0;
+  if (base64.endsWith("==")) padding = 2;
+  else if (base64.endsWith("=")) padding = 1;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Empty read"));
+    reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Re-encodes an image File, Blob, or data URL to a bounded JPEG data URL
+ * so mobile camera uploads fit BFF/OCR payloads while recording compression telemetry.
+ */
+export async function reencodeImageToJpeg(
+  imageSource: string | Blob,
+  maxDimension = 1280,
+  quality = 0.85
+): Promise<{ dataUrl: string; byteSize: number; rawBytes: number }> {
+  const isBlob = typeof imageSource !== "string";
+  const rawBytes = isBlob ? imageSource.size : estimateDataUrlByteSize(imageSource);
+  const srcUrl = isBlob ? URL.createObjectURL(imageSource) : imageSource;
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = (err) => reject(err);
+      el.src = srcUrl;
+    });
+
+    const scale = Math.min(1, maxDimension / Math.max(img.width || 1, img.height || 1));
+    const targetW = Math.max(1, Math.round(img.width * scale));
+    const targetH = Math.max(1, Math.round(img.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      const fallbackUrl = isBlob ? await readBlobAsDataUrl(imageSource) : imageSource;
+      return {
+        dataUrl: fallbackUrl,
+        byteSize: estimateDataUrlByteSize(fallbackUrl),
+        rawBytes,
+      };
+    }
+
+    // Paint a solid paper-white canvas so transparent PNG screenshots never encode black.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    return {
+      dataUrl,
+      byteSize: estimateDataUrlByteSize(dataUrl),
+      rawBytes,
+    };
+  } catch {
+    const fallbackUrl = isBlob ? await readBlobAsDataUrl(imageSource) : imageSource;
+    return {
+      dataUrl: fallbackUrl,
+      byteSize: estimateDataUrlByteSize(fallbackUrl),
+      rawBytes,
+    };
+  } finally {
+    if (isBlob) {
+      URL.revokeObjectURL(srcUrl);
+    }
+  }
+}
